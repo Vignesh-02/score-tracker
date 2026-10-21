@@ -19,7 +19,8 @@
     "dotenv": "^18.0.6",
     "drizzle-orm": "^0.45.4",
     "express": "^5.2.1",
-    "pg": "^8.23.1"
+    "pg": "^8.23.1",
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.11"
