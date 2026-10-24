@@ -52,11 +52,14 @@ matchRouter.post('/', async (req,res) => {
             status: getMatchStatus(startTime, endTime),
         }).returning();
         
+        if(res.app.locals.broadcastMatchCreated){
+            res.app.locals.broadcastMatchCreated(event);
+        }
+
         res.status(201).json({ data: event })
 
     }catch(e){
-
-        return res.status(400).json({ error: 'Invalid payload', details: parsed.error.issues });
-
+        console.error('Failed to create match:', e);
+        return res.status(500).json({ error: 'Failed to create match' });
     }
 })
