@@ -32,6 +32,11 @@ export function securityMiddleware() {
         try {
             const decision = await httpArcjet.protect(req);
 
+            // Arcjet fails open: on errors protect() doesn't throw, it allows the request
+            if(decision.isErrored()) {
+                console.warn('Arcjet error, allowing request:', decision.reason.message);
+            }
+
             if(decision.isDenied()) {
                 if(decision.reason.isRateLimit()) {
                     return res.status(429).json({ error: 'Too many requests.' });

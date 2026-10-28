@@ -50,15 +50,3 @@ export const updateScoreSchema = z.object({
   homeScore: z.coerce.number().int().nonnegative(),
   awayScore: z.coerce.number().int().nonnegative(),
 });
-
-export const createCommentarySchema = z.object({
-  message: z.string().trim().min(1, { message: 'message is required' }),
-  minute: z.coerce.number().int().nonnegative().optional(),
-  sequence: z.coerce.number().int().nonnegative().optional(),
-  period: z.string().trim().optional(),
-  eventType: z.string().trim().optional(),
-  actor: z.string().trim().optional(),
-  team: z.string().trim().optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
-  tags: z.array(z.string()).optional(),
-});

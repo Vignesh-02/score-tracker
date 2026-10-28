@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import { matchRouter } from './routes/matches/matches.js';
+import { commentaryRouter } from './routes/commentary.js';
 import http from 'http';
 import { attachWebSocketServer } from './ws/server.js';
 import { securityMiddleware } from './arcjet.js';
@@ -15,7 +16,8 @@ app.use(express.json());
 
 app.use(securityMiddleware());
 
-app.use('/matches', matchRouter)
+app.use('/matches', matchRouter);
+app.use('/matches/:id/commentary', commentaryRouter);
 
 app.get('/', (req, res) => {
     res.json({ message: 'Score Tracker API is running' });
