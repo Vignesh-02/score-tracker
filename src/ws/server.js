@@ -1,9 +1,15 @@
 import { WebSocket, WebSocketServer } from "ws";
 import { wsArcjet } from '../arcjet.js';
 
+
+// A perosn cannot join a match twice
 const matchSubscribers = new Map();
 
 function subscribe(matchId, socket) {
+
+    // It checks whether the match has a subscriber list yet. 
+
+
     if(!matchSubscribers.has(matchId)) {
         matchSubscribers.set(matchId, new Set());
     }
@@ -23,6 +29,8 @@ function unsubscribe(matchId, socket) {
     }
 }
 
+// When a user closes their browser or lose their internet connection,
+// we wanna close all their collections.
 function cleanupSubscriptions(socket) {
     for(const matchId of socket.subscriptions) {
         unsubscribe(matchId, socket);
@@ -139,6 +147,11 @@ export function attachWebSocketServer(server) {
         if (wsArcjet) {
             try {
                 const decision = await wsArcjet.protect(req);
+
+                // Arcjet fails open: on errors protect() doesn't throw, it allows the connection
+                if (decision.isErrored()) {
+                    console.warn('Arcjet error, allowing WS connection:', decision.reason.message);
+                }
 
                 if (decision.isDenied()) {
                     if (decision.reason.isRateLimit()) {
