@@ -215,5 +215,15 @@ export function attachWebSocketServer(server) {
         broadcastToMatch(matchId, { type: 'commentary', data: comment });
     }
 
-    return { broadcastMatchCreated, broadcastCommentary };
+    function broadcastScoreUpdate(matchId, match) {
+        broadcastToMatch(matchId, { type: 'score_update', data: match });
+    }
+
+    // Sent to everyone (like match_created), since it changes how the match
+    // shows up in any match list, not just for this match's subscribers
+    function broadcastStatusChange(match) {
+        broadcastToAll(wss, { type: 'status_change', data: match });
+    }
+
+    return { broadcastMatchCreated, broadcastCommentary, broadcastScoreUpdate, broadcastStatusChange };
 }

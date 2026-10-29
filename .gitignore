@@ -41,3 +41,7 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# APM Insight agent (config may contain the license key; data is local runtime output)
+apminsightnode.json
+apminsightdata/

@@ -20,7 +20,9 @@ export const wsArcjet = arcjetKey ?
         key: arcjetKey,
         rules: [
             shield({ mode: arcjetMode }),
-            detectBot({ mode: arcjetMode, allow: ['CATEGORY:SEARCH_ENGINE', "CATEGORY:PREVIEW" ]}),
+            // detectBot needs a User-Agent header, which many WebSocket clients
+            // (wscat, Node scripts) don't send, so it errored on every such connection
+            // detectBot({ mode: arcjetMode, allow: ['CATEGORY:SEARCH_ENGINE', "CATEGORY:PREVIEW" ]}),
             slidingWindow({ mode: arcjetMode, interval: '2s', max: 5 })
         ],
     }) : null;
