@@ -3,6 +3,7 @@ import { desc, eq } from 'drizzle-orm';
 import { matchIdParamSchema } from '../validation/matches.js';
 import { createCommentarySchema, listCommentaryQuerySchema } from '../validation/commentary.js';
 import { db } from '../db/db.js';
+import { requireAdmin } from '../auth.js';
 import { commentary } from '../db/schema.js';
 
 // mergeParams lets this router read :id from the parent path '/matches/:id/commentary'
@@ -42,7 +43,7 @@ commentaryRouter.get('/', async (req, res) => {
     }
 })
 
-commentaryRouter.post('/', async (req, res) => {
+commentaryRouter.post('/', requireAdmin, async (req, res) => {
     // req.params.id is a string ("5"); the schema coerces it to a number (5)
     const parsedParams = matchIdParamSchema.safeParse(req.params);
 

@@ -17,6 +17,7 @@ const TEST_PORT = 8765;
 const BASE = `http://127.0.0.1:${TEST_PORT}`;
 const WS_URL = `ws://127.0.0.1:${TEST_PORT}/ws`;
 const HEADERS = { 'User-Agent': 'api-test' };
+const ADMIN_HEADERS = { 'x-api-key': process.env.ADMIN_API_KEY };
 
 let server;
 const createdMatchIds = [];
@@ -25,8 +26,10 @@ const createdMatchIds = [];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function request(method, path, body) {
-    const headers = { ...HEADERS };
+// Sends the admin key by default, like an admin client would. Pass { admin: false }
+// to send the request as an anonymous visitor.
+async function request(method, path, body, { admin = true } = {}) {
+    const headers = { ...HEADERS, ...(admin && ADMIN_HEADERS) };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
 
     const res = await fetch(BASE + path, {
@@ -132,6 +135,35 @@ describe('Error handling', () => {
         const res = await request('POST', '/matches', { x: 'y'.repeat(200_000) });
         assert.equal(res.status, 413);
         assert.ok(res.contentType.includes('application/json'));
+    });
+});
+
+describe('Admin key', () => {
+    const writes = [
+        ['POST', '/matches', { sport: 'x' }],
+        ['PATCH', '/matches/1/score', { homeScore: 1, awayScore: 0 }],
+        ['POST', '/matches/1/commentary', { message: 'x' }],
+    ];
+
+    for (const [method, path, body] of writes) {
+        it(`${method} ${path} without a key → 401`, async () => {
+            const res = await request(method, path, body, { admin: false });
+            assert.equal(res.status, 401);
+        });
+    }
+
+    it('wrong key → 401', async () => {
+        const res = await fetch(BASE + '/matches', {
+            method: 'POST',
+            headers: { ...HEADERS, 'Content-Type': 'application/json', 'x-api-key': 'wrong' },
+            body: JSON.stringify({ sport: 'x' }),
+        });
+        assert.equal(res.status, 401);
+    });
+
+    it('read routes stay public', async () => {
+        assert.equal((await request('GET', '/matches', undefined, { admin: false })).status, 200);
+        assert.equal((await request('GET', '/matches/1/commentary', undefined, { admin: false })).status, 200);
     });
 });
 

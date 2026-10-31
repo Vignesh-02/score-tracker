@@ -4,6 +4,7 @@ import { createMatchSchema, listMatchesQuerySchema, matchIdParamSchema, updateSc
 import { getMatchStatus } from '../../utils/match-status.js';
 import { syncStatuses } from '../../jobs/status-sync.js';
 import { db } from '../../db/db.js';
+import { requireAdmin } from '../../auth.js';
 import { matches } from '../../db/schema.js';
 
 export const matchRouter = Router();
@@ -38,7 +39,7 @@ matchRouter.get('/', async (req,res) => {
     }
 })
 
-matchRouter.post('/', async (req,res) => {
+matchRouter.post('/', requireAdmin, async (req,res) => {
     const parsed = createMatchSchema.safeParse(req.body);
 
     if(!parsed.success){
@@ -70,7 +71,7 @@ matchRouter.post('/', async (req,res) => {
 })
 
 
-matchRouter.patch('/:id/score', async (req,res) => {
+matchRouter.patch('/:id/score', requireAdmin, async (req,res) => {
     const parsedParams = matchIdParamSchema.safeParse(req.params);
 
     if(!parsedParams.success){
