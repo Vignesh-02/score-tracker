@@ -1,5 +1,6 @@
 import { WebSocket, WebSocketServer } from "ws";
 import { wsArcjet } from '../arcjet.js';
+import { allowWsConnection } from '../rate-limit.js';
 
 
 // A perosn cannot join a match twice
@@ -140,6 +141,12 @@ export function attachWebSocketServer(server) {
         const { pathname } = new URL(req.url, `http://${req.headers.host}`);
 
         if (pathname !== '/ws') {
+            socket.destroy();
+            return;
+        }
+
+        if (!allowWsConnection(req)) {
+            socket.write('HTTP/1.1 429 Too Many Requests\r\n\r\n');
             socket.destroy();
             return;
         }
