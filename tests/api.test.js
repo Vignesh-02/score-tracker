@@ -78,10 +78,10 @@ async function createMatch(overrides = {}) {
     return res;
 }
 
-async function waitForServer() {
+async function waitForServer(base = BASE) {
     for (let i = 0; i < 60; i++) {
         try {
-            await fetch(BASE + '/', { headers: HEADERS });
+            await fetch(base + '/', { headers: HEADERS });
             return;
         } catch {
             await sleep(250);
@@ -94,7 +94,8 @@ async function waitForServer() {
 
 before(async () => {
     server = spawn('node', ['src/index.js'], {
-        env: { ...process.env, PORT: String(TEST_PORT), HOST: '127.0.0.1' },
+        // High limits, so the rate limiter doesn't block the rest of the suite
+        env: { ...process.env, PORT: String(TEST_PORT), HOST: '127.0.0.1', RATE_LIMIT_MAX: '100000', WS_RATE_LIMIT_MAX: '100000' },
         stdio: 'ignore',
     });
     await waitForServer();
@@ -135,6 +136,63 @@ describe('Error handling', () => {
         const res = await request('POST', '/matches', { x: 'y'.repeat(200_000) });
         assert.equal(res.status, 413);
         assert.ok(res.contentType.includes('application/json'));
+    });
+});
+
+describe('Rate limiting', () => {
+    const LIMIT_PORT = 8766;
+    const LIMIT_BASE = `http://127.0.0.1:${LIMIT_PORT}`;
+    const LIMIT_WS = `ws://127.0.0.1:${LIMIT_PORT}/ws`;
+    let limited;
+
+    const get = (ip) => fetch(`${LIMIT_BASE}/`, { headers: { ...HEADERS, 'X-Forwarded-For': ip } });
+
+    const tryConnect = (ip) => new Promise((resolve) => {
+        const ws = new WebSocket(LIMIT_WS, { headers: { ...HEADERS, 'X-Forwarded-For': ip } });
+        ws.on('open', () => { ws.close(); resolve('open'); });
+        ws.on('unexpected-response', (req, res) => resolve(res.statusCode));
+        ws.on('error', () => resolve('error'));
+    });
+
+    before(async () => {
+        limited = spawn('node', ['src/index.js'], {
+            // No Arcjet here, so these tests only exercise the local limiter
+            env: { ...process.env, PORT: String(LIMIT_PORT), HOST: '127.0.0.1', ARCJET_KEY: '', TRUSTED_PROXIES: '127.0.0.1', RATE_LIMIT_MAX: '5', WS_RATE_LIMIT_MAX: '3' },
+            stdio: 'ignore',
+        });
+        await waitForServer(LIMIT_BASE);
+        await sleep(10_500); // let waitForServer's request age out of the window
+    });
+
+    after(() => limited?.kill());
+
+    it('blocks a visitor over the HTTP limit with a JSON 429', async () => {
+        for (let i = 0; i < 5; i++) assert.equal((await get('8.8.8.8')).status, 200);
+
+        const res = await get('8.8.8.8');
+        assert.equal(res.status, 429);
+        assert.deepEqual(await res.json(), { error: 'Too many requests.' });
+    });
+
+    it('counts each visitor separately', async () => {
+        assert.equal((await get('1.1.1.1')).status, 200);
+    });
+
+    it('cannot be bypassed by faking an extra IP', async () => {
+        // Nginx appends the real address last, so a client-supplied value is ignored
+        const res = await get('203.0.113.7, 8.8.8.8');
+        assert.equal(res.status, 429);
+    });
+
+    it('blocks a visitor over the WebSocket connection limit', async () => {
+        await sleep(2_100);
+        const results = [];
+        for (let i = 0; i < 4; i++) results.push(await tryConnect('8.8.4.4'));
+        assert.deepEqual(results, ['open', 'open', 'open', 429]);
+    });
+
+    it('counts WebSocket visitors separately', async () => {
+        assert.equal(await tryConnect('9.9.9.9'), 'open');
     });
 });
 

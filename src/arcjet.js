@@ -1,12 +1,8 @@
 import arcjet, {detectBot, shield, slidingWindow} from "@arcjet/node";
+import { trustedProxies } from './rate-limit.js';
 
 const arcjetKey = process.env.ARCJET_KEY;
 const arcjetMode = process.env.ARCJET_MODE === 'DRY_RUN' ? 'DRY_RUN' : 'LIVE';
-
-// Reverse proxies (e.g. Nginx on 127.0.0.1) whose X-Forwarded-For header can be trusted.
-// Without this, every request behind Nginx looks like it comes from 127.0.0.1
-// and all visitors would share one rate limit. Comma-separated, empty locally.
-const trustedProxies = (process.env.TRUSTED_PROXIES ?? '').split(',').map((ip) => ip.trim()).filter(Boolean);
 
 if(!arcjetKey) console.warn('ARCJET_KEY is missing. Arcjet protection is disabled.');
 

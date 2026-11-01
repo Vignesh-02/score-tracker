@@ -8,6 +8,7 @@ import { commentaryRouter } from './routes/commentary.js';
 import http from 'http';
 import { attachWebSocketServer } from './ws/server.js';
 import { securityMiddleware } from './arcjet.js';
+import { httpRateLimit, trustedProxies } from './rate-limit.js';
 import { startStatusSync } from './jobs/status-sync.js';
 
 const app = express();
@@ -16,8 +17,14 @@ const HOST = process.env.HOST || '0.0.0.0';
 
 const server = http.createServer(app);
 
+// Lets req.ip be the real visitor behind Nginx
+app.set('trust proxy', trustedProxies);
+
+// Runs first, so requests over the limit don't use up Arcjet's monthly quota
+app.use(httpRateLimit);
+
 // Arcjet runs before body parsing, so malformed or oversized bodies are
-// rate-limited too (a body parse error skips every middleware after it)
+// checked too (a body parse error skips every middleware after it)
 app.use(securityMiddleware());
 
 app.use(express.json());
