@@ -12,6 +12,8 @@ import WebSocket from 'ws';
 import { eq, inArray } from 'drizzle-orm';
 import { db, pool } from '../src/db/db.js';
 import { matches, commentary } from '../src/db/schema.js';
+import { toMatchRow } from '../src/providers/football-data.js';
+import { saveProviderMatches } from '../src/jobs/football-sync.js';
 
 const TEST_PORT = 8765;
 const BASE = `http://127.0.0.1:${TEST_PORT}`;
@@ -95,7 +97,7 @@ async function waitForServer(base = BASE) {
 before(async () => {
     server = spawn('node', ['src/index.js'], {
         // High limits, so the rate limiter doesn't block the rest of the suite
-        env: { ...process.env, PORT: String(TEST_PORT), HOST: '127.0.0.1', RATE_LIMIT_MAX: '100000', WS_RATE_LIMIT_MAX: '100000' },
+        env: { ...process.env, PORT: String(TEST_PORT), HOST: '127.0.0.1', RATE_LIMIT_MAX: '100000', WS_RATE_LIMIT_MAX: '100000', FOOTBALL_DATA_API_KEY: '' },
         stdio: 'ignore',
     });
     await waitForServer();
@@ -139,6 +141,95 @@ describe('Error handling', () => {
     });
 });
 
+describe('football-data.org adapter', () => {
+    const sample = (overrides = {}) => ({
+        id: 575378,
+        utcDate: '2026-11-03T17:45:00Z',
+        status: 'IN_PLAY',
+        competition: { name: 'UEFA Champions League' },
+        homeTeam: { name: 'Galatasaray SK', shortName: 'Galatasaray' },
+        awayTeam: { name: 'VfB Stuttgart', shortName: 'Stuttgart' },
+        score: { fullTime: { home: 1, away: 0 } },
+        ...overrides,
+    });
+
+    it('maps a match to a row', () => {
+        const row = toMatchRow(sample());
+        assert.equal(row.source, 'football-data');
+        assert.equal(row.externalId, '575378');
+        assert.equal(row.sport, 'Football');
+        assert.equal(row.competition, 'UEFA Champions League');
+        assert.equal(row.homeTeam, 'Galatasaray');
+        assert.equal(row.awayTeam, 'Stuttgart');
+        assert.equal(row.status, 'live');
+        assert.equal(row.homeScore, 1);
+        assert.equal(row.awayScore, 0);
+        assert.equal(row.startTime.toISOString(), '2026-11-03T17:45:00.000Z');
+        assert.ok(row.endTime > row.startTime);
+    });
+
+    it('maps their statuses to ours', () => {
+        const status = (s) => toMatchRow(sample({ status: s })).status;
+        assert.equal(status('TIMED'), 'scheduled');
+        assert.equal(status('PAUSED'), 'live');
+        assert.equal(status('FINISHED'), 'finished');
+    });
+
+    it('defaults missing scores to 0 and skips matches without teams', () => {
+        assert.equal(toMatchRow(sample({ score: { fullTime: { home: null, away: null } } })).homeScore, 0);
+        assert.equal(toMatchRow(sample({ homeTeam: { name: null } })), null);
+    });
+});
+
+describe('Provider sync', () => {
+    const SOURCE = 'TEST-provider';
+    const externalId = `sync-${Date.now()}`;
+    // Fixed times, so repeated calls produce identical rows
+    const kickoff = Date.now() + 3600e3;
+    const row = (overrides = {}) => ({
+        source: SOURCE, externalId, sport: 'Football', competition: 'TEST League',
+        homeTeam: 'TEST Home', awayTeam: 'TEST Away', status: 'scheduled',
+        startTime: new Date(kickoff), endTime: new Date(kickoff + 7200e3),
+        homeScore: 0, awayScore: 0, ...overrides,
+    });
+    const track = (m) => { if (!createdMatchIds.includes(m.id)) createdMatchIds.push(m.id); };
+
+    it('inserts a new match once and reports it', async () => {
+        const created = [];
+        const first = await saveProviderMatches([row()], { onCreated: (m) => { track(m); created.push(m); } });
+        const again = await saveProviderMatches([row()], { onCreated: (m) => created.push(m) });
+        assert.deepEqual(first, { created: 1, updated: 0 });
+        assert.deepEqual(again, { created: 0, updated: 0 });
+        assert.equal(created.length, 1);
+    });
+
+    it('updates the same row and reports score and status changes', async () => {
+        const scores = [], statuses = [];
+        const result = await saveProviderMatches([row({ status: 'live', homeScore: 2 })], {
+            onScoreChange: (m) => scores.push(m), onStatusChange: (m) => statuses.push(m),
+        });
+        assert.deepEqual(result, { created: 0, updated: 1 });
+        assert.equal(scores[0].homeScore, 2);
+        assert.equal(statuses[0].status, 'live');
+
+        const rows = await db.select().from(matches).where(eq(matches.externalId, externalId));
+        assert.equal(rows.length, 1);
+    });
+
+    it('is not overridden by the time-based status sync', async () => {
+        const now = Date.now();
+        const [stale] = await db.insert(matches).values(row({
+            externalId: `${externalId}-stale`, status: 'scheduled',
+            startTime: new Date(now - 7200e3), endTime: new Date(now - 3600e3),
+        })).returning();
+        track(stale);
+
+        await request('GET', '/matches?limit=100');
+        const [after] = await db.select().from(matches).where(eq(matches.id, stale.id));
+        assert.equal(after.status, 'scheduled');
+    });
+});
+
 describe('Rate limiting', () => {
     const LIMIT_PORT = 8766;
     const LIMIT_BASE = `http://127.0.0.1:${LIMIT_PORT}`;
@@ -157,7 +248,7 @@ describe('Rate limiting', () => {
     before(async () => {
         limited = spawn('node', ['src/index.js'], {
             // No Arcjet here, so these tests only exercise the local limiter
-            env: { ...process.env, PORT: String(LIMIT_PORT), HOST: '127.0.0.1', ARCJET_KEY: '', TRUSTED_PROXIES: '127.0.0.1', RATE_LIMIT_MAX: '5', WS_RATE_LIMIT_MAX: '3' },
+            env: { ...process.env, PORT: String(LIMIT_PORT), HOST: '127.0.0.1', ARCJET_KEY: '', TRUSTED_PROXIES: '127.0.0.1', RATE_LIMIT_MAX: '5', WS_RATE_LIMIT_MAX: '3', FOOTBALL_DATA_API_KEY: '' },
             stdio: 'ignore',
         });
         await waitForServer(LIMIT_BASE);
@@ -247,6 +338,36 @@ describe('POST /matches', () => {
         assert.equal(res.json.data.status, 'live');
         assert.equal(res.json.data.homeScore, 0);
         assert.equal(res.json.data.awayScore, 0);
+    });
+
+    it('saves competition and marks the match as manual', async () => {
+        const res = await createMatch({ competition: 'Indian Super League' });
+        assert.equal(res.status, 201);
+        assert.equal(res.json.data.competition, 'Indian Super League');
+        assert.equal(res.json.data.source, 'manual');
+        assert.equal(res.json.data.externalId, null);
+    });
+
+    it('ignores source and externalId sent by the client', async () => {
+        const res = await createMatch({ source: 'football-data', externalId: 'fake-1' });
+        assert.equal(res.status, 201);
+        assert.equal(res.json.data.source, 'manual');
+        assert.equal(res.json.data.externalId, null);
+    });
+
+    it('allows only one row per provider match, but any number of manual ones', async () => {
+        const row = { sport: 'TEST', homeTeam: 'TEST Home', awayTeam: 'TEST Away', source: 'TEST-provider', externalId: `ext-${Date.now()}` };
+        const [first] = await db.insert(matches).values(row).returning();
+        createdMatchIds.push(first.id);
+
+        await assert.rejects(db.insert(matches).values(row), (e) => (e.cause?.code ?? e.code) === '23505');
+
+        const manual = await db.insert(matches).values([
+            { sport: 'TEST', homeTeam: 'TEST A', awayTeam: 'TEST B' },
+            { sport: 'TEST', homeTeam: 'TEST A', awayTeam: 'TEST B' },
+        ]).returning();
+        createdMatchIds.push(...manual.map((m) => m.id));
+        assert.equal(manual.length, 2);
     });
 
     it('computes scheduled and finished statuses', async () => {
