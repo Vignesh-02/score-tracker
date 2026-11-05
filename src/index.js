@@ -10,6 +10,7 @@ import { attachWebSocketServer } from './ws/server.js';
 import { securityMiddleware } from './arcjet.js';
 import { httpRateLimit, trustedProxies } from './rate-limit.js';
 import { startStatusSync } from './jobs/status-sync.js';
+import { startFootballSync } from './jobs/football-sync.js';
 
 const app = express();
 const PORT = Number(process.env.PORT || 8000);
@@ -64,6 +65,13 @@ app.locals.broadcastStatusChange = broadcastStatusChange;
 
 // Every 30s, move matches to live/finished and tell connected clients
 startStatusSync({ onChange: broadcastStatusChange });
+
+// Every 60s, import European football from football-data.org and broadcast changes
+startFootballSync({
+    onCreated: broadcastMatchCreated,
+    onScoreChange: (match) => broadcastScoreUpdate(match.id, match),
+    onStatusChange: broadcastStatusChange,
+});
 
 
 
