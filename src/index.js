@@ -1,6 +1,4 @@
-import AgentAPI from "apminsight";
-AgentAPI.config();
-
+import './instrument.js';
 import 'dotenv/config';
 import express from 'express';
 import { matchRouter } from './routes/matches/matches.js';
@@ -11,15 +9,26 @@ import { securityMiddleware } from './arcjet.js';
 import { httpRateLimit, trustedProxies } from './rate-limit.js';
 import { startStatusSync } from './jobs/status-sync.js';
 import { startFootballSync } from './jobs/football-sync.js';
+import { healthRouter } from './routes/health.js';
+import { pool } from './db/db.js';
 
 const app = express();
 const PORT = Number(process.env.PORT || 8000);
 const HOST = process.env.HOST || '0.0.0.0';
 
+// How long shutdown may take before the process exits anyway
+const SHUTDOWN_TIMEOUT_MS = 10_000;
+
+let shuttingDown = false;
+
 const server = http.createServer(app);
 
 // Lets req.ip be the real visitor behind Nginx
 app.set('trust proxy', trustedProxies);
+
+// Before rate limiting and Arcjet, so monitors and load balancers checking it
+// often are never blocked. It caches its database check, so it stays cheap.
+app.use('/health', healthRouter({ isShuttingDown: () => shuttingDown }));
 
 // Runs first, so requests over the limit don't use up Arcjet's monthly quota
 app.use(httpRateLimit);
@@ -55,7 +64,10 @@ app.use((err, req, res, next) => {
 });
 
 
-const { broadcastMatchCreated, broadcastCommentary, broadcastScoreUpdate, broadcastStatusChange } = attachWebSocketServer(server);
+const {
+    broadcastMatchCreated, broadcastCommentary, broadcastScoreUpdate, broadcastStatusChange,
+    close: closeWebSockets,
+} = attachWebSocketServer(server);
 
 
 app.locals.broadcastMatchCreated = broadcastMatchCreated;
@@ -64,16 +76,62 @@ app.locals.broadcastScoreUpdate = broadcastScoreUpdate;
 app.locals.broadcastStatusChange = broadcastStatusChange;
 
 // Every 30s, move matches to live/finished and tell connected clients
-startStatusSync({ onChange: broadcastStatusChange });
+const stopStatusSync = startStatusSync({ onChange: broadcastStatusChange });
 
 // Every 60s, import European football from football-data.org and broadcast changes
-startFootballSync({
+const stopFootballSync = startFootballSync({
     onCreated: broadcastMatchCreated,
     onScoreChange: (match) => broadcastScoreUpdate(match.id, match),
     onStatusChange: broadcastStatusChange,
 });
 
 
+// ---------- shutdown and crash handling ----------
+
+// Runs on deploys and restarts (SIGTERM from systemd, PM2, Docker or
+// node --watch) and on Ctrl+C. Stops taking new work, lets in-flight requests
+// finish, tells WebSocket clients to reconnect, then closes the database pool.
+async function shutdown(reason, exitCode = 0) {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`${reason}: shutting down...`);
+
+    // If anything hangs, exit anyway so the supervisor can start a fresh process
+    setTimeout(() => {
+        console.error('Shutdown took too long, forcing exit');
+        process.exit(exitCode || 1);
+    }, SHUTDOWN_TIMEOUT_MS).unref();
+
+    try {
+        stopStatusSync();
+        stopFootballSync();
+        await closeWebSockets();
+        // Stops accepting connections and waits for in-flight requests
+        await new Promise((resolve) => server.close(() => resolve()));
+        await pool.end();
+    } catch (e) {
+        console.error('Error during shutdown:', e);
+        exitCode ||= 1;
+    }
+
+    process.exit(exitCode);
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+// A promise rejected with no .catch(). Usually a missing await or catch in one
+// request or job; log it with its stack and keep serving everyone else.
+process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled promise rejection:', reason);
+});
+
+// A thrown error nothing caught. The process may now be in a broken state, so
+// log it and exit; the supervisor (systemd, PM2, Docker) starts a clean one.
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught exception:', err);
+    shutdown('Uncaught exception', 1);
+});
 
 server.listen(PORT, HOST, () => {
     const baseUrl = HOST === '0.0.0.0' ? `http://localhost:${PORT}` : `http://${HOST}:${PORT}`;

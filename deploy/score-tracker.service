@@ -1,0 +1,61 @@
+# systemd service for the Score Tracker API + WebSocket server.
+#
+# Install:  sudo cp deploy/score-tracker.service /etc/systemd/system/
+#           sudo systemctl daemon-reload
+#           sudo systemctl enable --now score-tracker
+# Logs:     journalctl -u score-tracker -f
+#
+# Assumes the app is in /srv/score-tracker, run by a "scoretracker" user, with
+# Node at /usr/bin/node (check with `which node`; nvm installs live elsewhere).
+
+[Unit]
+Description=Score Tracker API and WebSocket server
+After=network-online.target
+Wants=network-online.target
+# Never stop restarting after repeated crashes (the default gives up after 5
+# failures in 10s); a database outage shouldn't leave the app down for good
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=scoretracker
+Group=scoretracker
+WorkingDirectory=/srv/score-tracker
+ExecStart=/usr/bin/node src/index.js
+
+# Secrets (DATABASE_URL_POOLED, API keys) stay in /srv/score-tracker/.env,
+# which the app loads itself. These settings are specific to this server;
+# values set here win over .env.
+Environment=NODE_ENV=production
+# Only Nginx (on this machine) can reach the app; port 8000 isn't public
+Environment=HOST=127.0.0.1
+Environment=PORT=8000
+# Nginx's address, so req.ip and rate limits use the real visitor's IP
+Environment=TRUSTED_PROXIES=127.0.0.1
+
+# Restart 2s after any exit (a crash exits with code 1 by design)
+Restart=always
+RestartSec=2
+
+# Stop and restart send SIGTERM, which runs the app's graceful shutdown
+# (up to 10s). Give it a little longer before systemd force-kills it.
+KillSignal=SIGTERM
+TimeoutStopSec=15
+
+# Each WebSocket connection uses a file descriptor; the default (1024) is low
+LimitNOFILE=65536
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=score-tracker
+
+# Hardening: the app can't gain privileges or write outside its data folder
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+# The APM agent writes its logs here
+ReadWritePaths=/srv/score-tracker/apminsightdata
+
+[Install]
+WantedBy=multi-user.target

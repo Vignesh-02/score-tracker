@@ -1,6 +1,6 @@
 import { Router } from  'express';
-import { desc, eq } from 'drizzle-orm';
-import { createMatchSchema, listMatchesQuerySchema, matchIdParamSchema, updateScoreSchema } from '../../validation/matches.js';
+import { and, between, desc, eq, gte, isNull, or, sql } from 'drizzle-orm';
+import { MATCH_STATUS, createMatchSchema, listMatchesQuerySchema, matchIdParamSchema, updateScoreSchema } from '../../validation/matches.js';
 import { getMatchStatus } from '../../utils/match-status.js';
 import { syncStatuses } from '../../jobs/status-sync.js';
 import { db } from '../../db/db.js';
@@ -10,6 +10,36 @@ import { matches } from '../../db/schema.js';
 export const matchRouter = Router();
 
 const MAX_LIMIT = 100;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// What the dashboard shows: every live match, scheduled matches from a day ago
+// (a little late or postponed) to a week ahead, and matches finished in the
+// last 2 days. Live first, then upcoming soonest first, then finished most
+// recent first, so the limit cuts old results before anything current.
+function currentMatches(limit, now = Date.now()) {
+    const { LIVE, SCHEDULED, FINISHED } = MATCH_STATUS;
+
+    return db
+        .select()
+        .from(matches)
+        .where(or(
+            eq(matches.status, LIVE),
+            and(
+                eq(matches.status, SCHEDULED),
+                or(isNull(matches.startTime), between(matches.startTime, new Date(now - DAY_MS), new Date(now + 7 * DAY_MS))),
+            ),
+            and(eq(matches.status, FINISHED), gte(matches.startTime, new Date(now - 2 * DAY_MS))),
+        ))
+        .orderBy(
+            sql`case ${matches.status} when ${LIVE} then 0 when ${SCHEDULED} then 1 else 2 end`,
+            // Live and upcoming: earliest first. Finished rows all get null here,
+            // so the next rule orders them instead.
+            sql`case when ${matches.status} <> ${FINISHED} then ${matches.startTime} end asc nulls last`,
+            desc(matches.startTime),
+        )
+        .limit(limit);
+}
 
 matchRouter.get('/', async (req,res) => {
     const parsed = listMatchesQuerySchema.safeParse(req.query);
@@ -21,11 +51,11 @@ matchRouter.get('/', async (req,res) => {
     const limit = Math.min(parsed.data.limit ?? 50, MAX_LIMIT)
 
     try{
-        const data = await db.select().from(matches).orderBy(desc(matches.createdAt)).limit(limit);
-
-        // This is Drizzle ORM, and it reads almost like SQL:
-
-        // SELECT * FROM matches ORDER BY created_at DESC LIMIT 50;
+        const data = parsed.data.view === 'current'
+            ? await currentMatches(limit)
+            // This is Drizzle ORM, and it reads almost like SQL:
+            // SELECT * FROM matches ORDER BY created_at DESC LIMIT 50;
+            : await db.select().from(matches).orderBy(desc(matches.createdAt)).limit(limit);
 
         // The background job syncs every 30s; this makes the list exact right now.
         // Changes found here are broadcast too, so clients never miss one.

@@ -13,7 +13,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { db, pool } from '../src/db/db.js';
 import { matches, commentary } from '../src/db/schema.js';
 import { toMatchRow } from '../src/providers/football-data.js';
-import { saveProviderMatches } from '../src/jobs/football-sync.js';
+import { catchUpStaleMatches, saveProviderMatches } from '../src/jobs/football-sync.js';
 
 const TEST_PORT = 8765;
 const BASE = `http://127.0.0.1:${TEST_PORT}`;
@@ -230,6 +230,67 @@ describe('Provider sync', () => {
     });
 });
 
+describe('Stale provider match catch-up', () => {
+    // Replaces fetch for one call, recording the URL; restores it afterwards
+    async function withFakeFetch(providerMatches, fn) {
+        const realFetch = globalThis.fetch;
+        const urls = [];
+        globalThis.fetch = async (url) => {
+            urls.push(String(url));
+            return new Response(JSON.stringify({ matches: providerMatches }), { status: 200 });
+        };
+        try {
+            return { result: await fn(), urls };
+        } finally {
+            globalThis.fetch = realFetch;
+        }
+    }
+
+    it('re-fetches an unfinished match outside the sync window by id and finishes it', async () => {
+        const externalId = `stale-${Date.now()}`;
+        const kickoff = new Date(Date.now() - 5 * 86400e3);
+        const [stale] = await db.insert(matches).values({
+            source: 'football-data', externalId, sport: 'Football', competition: 'TEST League',
+            homeTeam: 'TEST Home', awayTeam: 'TEST Away', status: 'scheduled',
+            startTime: kickoff, endTime: new Date(kickoff.getTime() + 7200e3),
+        }).returning();
+        createdMatchIds.push(stale.id);
+
+        const statusChanges = [];
+        const { result, urls } = await withFakeFetch([{
+            id: externalId, utcDate: kickoff.toISOString(), status: 'FINISHED',
+            competition: { name: 'TEST League' },
+            homeTeam: { shortName: 'TEST Home' }, awayTeam: { shortName: 'TEST Away' },
+            score: { fullTime: { home: 2, away: 1 } },
+        }], () => catchUpStaleMatches({ onStatusChange: (m) => statusChanges.push(m) }));
+
+        assert.equal(urls.length, 1);
+        assert.ok(new URL(urls[0]).searchParams.get('ids').split(',').includes(externalId));
+        assert.ok(result.updated >= 1);
+        assert.ok(statusChanges.some((m) => m.id === stale.id && m.status === 'finished'));
+
+        const [row] = await db.select().from(matches).where(eq(matches.id, stale.id));
+        assert.equal(row.status, 'finished');
+        assert.equal(row.homeScore, 2);
+        assert.equal(row.awayScore, 1);
+    });
+
+    it('leaves matches inside the sync window to the regular sync', async () => {
+        const externalId = `recent-${Date.now()}`;
+        const kickoff = new Date(Date.now() + 3600e3);
+        const [upcoming] = await db.insert(matches).values({
+            source: 'football-data', externalId, sport: 'Football',
+            homeTeam: 'TEST Home', awayTeam: 'TEST Away', status: 'scheduled',
+            startTime: kickoff, endTime: new Date(kickoff.getTime() + 7200e3),
+        }).returning();
+        createdMatchIds.push(upcoming.id);
+
+        const { urls } = await withFakeFetch([], () => catchUpStaleMatches());
+        const requested = urls.flatMap((url) => new URL(url).searchParams.get('ids')?.split(',') ?? []);
+        assert.ok(!requested.includes(externalId));
+    });
+});
+
 describe('Rate limiting', () => {
     const LIMIT_PORT = 8766;
     const LIMIT_BASE = `http://127.0.0.1:${LIMIT_PORT}`;
@@ -256,6 +317,13 @@ describe('Rate limiting', () => {
     });
 
     after(() => limited?.kill());
+
+    it('never rate limits /health', async () => {
+        for (let i = 0; i < 10; i++) {
+            const res = await fetch(`${LIMIT_BASE}/health`, { headers: { ...HEADERS, 'X-Forwarded-For': '9.9.9.9' } });
+            assert.equal(res.status, 200);
+        }
+    });
 
     it('blocks a visitor over the HTTP limit with a JSON 429', async () => {
         for (let i = 0; i < 5; i++) assert.equal((await get('8.8.8.8')).status, 200);
@@ -399,6 +467,31 @@ describe('GET /matches', () => {
             assert.equal(res.status, 400);
         });
     }
+
+    it('view=current lists live, then upcoming, then recent results, and leaves out old ones', async () => {
+        const now = Date.now();
+        const hour = 3600e3, day = 86400e3;
+        // A non-manual source, so the time-based status sync leaves these alone
+        const base = { source: 'TEST-view', sport: 'TEST', homeTeam: 'TEST', awayTeam: 'TEST' };
+        const rows = await db.insert(matches).values([
+            { ...base, homeTeam: 'TEST live', status: 'live', startTime: new Date(now - hour), endTime: new Date(now + hour) },
+            { ...base, homeTeam: 'TEST soon', status: 'scheduled', startTime: new Date(now + 3 * day), endTime: new Date(now + 3 * day + hour) },
+            { ...base, homeTeam: 'TEST recent', status: 'finished', startTime: new Date(now - day), endTime: new Date(now - day + hour) },
+            { ...base, homeTeam: 'TEST old', status: 'finished', startTime: new Date(now - 5 * day), endTime: new Date(now - 5 * day + hour) },
+            { ...base, homeTeam: 'TEST far', status: 'scheduled', startTime: new Date(now + 10 * day), endTime: new Date(now + 10 * day + hour) },
+        ]).returning();
+        rows.forEach((r) => createdMatchIds.push(r.id));
+
+        const res = await request('GET', '/matches?view=current&limit=100');
+        assert.equal(res.status, 200);
+        const order = res.json.data.filter((m) => m.source === 'TEST-view').map((m) => m.homeTeam);
+        assert.deepEqual(order, ['TEST live', 'TEST soon', 'TEST recent']);
+    });
+
+    it('rejects an unknown view', async () => {
+        const res = await request('GET', '/matches?view=everything');
+        assert.equal(res.status, 400);
+    });
 
     it('fixes a stale status and saves it to the DB', async () => {
         const now = Date.now();
@@ -617,5 +710,69 @@ describe('WebSocket /ws', () => {
         assert.ok(msg, 'expected a status_change broadcast');
         assert.equal(msg.data.status, 'finished');
         ws.close();
+    });
+});
+
+describe('GET /health', () => {
+    it('reports the database and football sync status', async () => {
+        const res = await request('GET', '/health', undefined, { admin: false });
+        assert.equal(res.status, 200);
+        assert.equal(res.json.status, 'ok');
+        assert.deepEqual(res.json.db, { ok: true });
+        // The test server runs without a football-data.org key
+        assert.equal(res.json.footballSync.enabled, false);
+        assert.equal(res.json.footballSync.stale, false);
+    });
+});
+
+describe('Shutdown and crash handling', () => {
+    // Starts a separate server. `preload` is code run inside it via --import,
+    // used to simulate errors without adding test code to the app. The errors
+    // are triggered by SIGUSR2 once the server is up, so the app's handlers
+    // are installed by then.
+    async function startServer(port, preload) {
+        const args = preload
+            ? ['--import', `data:text/javascript,${encodeURIComponent(preload)}`, 'src/index.js']
+            : ['src/index.js'];
+        const child = spawn('node', args, {
+            env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', FOOTBALL_DATA_API_KEY: '' },
+            stdio: 'ignore',
+        });
+        const exited = new Promise((resolve) => child.on('exit', (code) => resolve(code)));
+        await waitForServer(`http://127.0.0.1:${port}`);
+        return { child, exited };
+    }
+
+    it('on SIGTERM, tells WebSocket clients to reconnect and exits cleanly', async () => {
+        const port = 8767;
+        const { child, exited } = await startServer(port);
+
+        const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`, { headers: HEADERS });
+        await new Promise((resolve) => ws.on('open', resolve));
+        const closed = new Promise((resolve) => ws.on('close', (code) => resolve(code)));
+
+        child.kill('SIGTERM');
+
+        assert.equal(await closed, 1001);
+        assert.equal(await exited, 0);
+    });
+
+    it('keeps serving after an unhandled promise rejection', async () => {
+        const port = 8768;
+        const { child } = await startServer(port, "process.on('SIGUSR2', () => { Promise.reject(new Error('TEST rejection')) })");
+        try {
+            child.kill('SIGUSR2');
+            await sleep(500);
+            const res = await fetch(`http://127.0.0.1:${port}/`, { headers: HEADERS });
+            assert.equal(res.status, 200);
+        } finally {
+            child.kill();
+        }
+    });
+
+    it('exits with code 1 after an uncaught exception, so a supervisor restarts it', async () => {
+        const { child, exited } = await startServer(8769, "process.on('SIGUSR2', () => setImmediate(() => { throw new Error('TEST crash') }))");
+        child.kill('SIGUSR2');
+        assert.equal(await exited, 1);
     });
 });

@@ -232,5 +232,17 @@ export function attachWebSocketServer(server) {
         broadcastToAll(wss, { type: 'status_change', data: match });
     }
 
-    return { broadcastMatchCreated, broadcastCommentary, broadcastScoreUpdate, broadcastStatusChange };
+    // For graceful shutdown. 1001 ("going away") tells clients the server is
+    // restarting, so they reconnect (the frontend does this automatically).
+    function close() {
+        clearInterval(interval);
+
+        for (const client of wss.clients) {
+            client.close(1001, 'Server restarting');
+        }
+
+        return new Promise((resolve) => wss.close(() => resolve()));
+    }
+
+    return { broadcastMatchCreated, broadcastCommentary, broadcastScoreUpdate, broadcastStatusChange, close };
 }
