@@ -22,6 +22,7 @@ export const matchIdParamSchema = z.object({
 export const createMatchSchema = z
   .object({
     sport: z.string().trim().min(1, { message: 'sport is required' }),
+    competition: z.string().trim().min(1).optional(),
     homeTeam: z.string().trim().min(1, { message: 'homeTeam is required' }),
     awayTeam: z.string().trim().min(1, { message: 'awayTeam is required' }),
     startTime: z.string().refine(isValidIsoDate, {

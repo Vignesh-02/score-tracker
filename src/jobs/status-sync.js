@@ -8,8 +8,12 @@ const DEFAULT_INTERVAL_MS = 30_000;
 
 // Brings each match's status up to date with the current time and calls
 // onChange(match) for every match whose status actually changed.
+// Only manual matches: provider matches get their status from the provider,
+// which knows about delays and extra time.
 export async function syncStatuses(matchList, onChange) {
-    await Promise.all(matchList.map(async (match) => {
+    const manualMatches = matchList.filter((match) => match.source === 'manual');
+
+    await Promise.all(manualMatches.map(async (match) => {
         const previous = match.status;
         let changed = false;
 
@@ -41,11 +45,12 @@ export function startStatusSync({ onChange, intervalMs = DEFAULT_INTERVAL_MS } =
         running = true;
 
         try {
-            // A finished match can't change status again, so leave those out
+            // A finished match can't change status again, and provider matches
+            // get their status from the provider, so only active manual matches
             const active = await db
                 .select()
                 .from(matches)
-                .where(ne(matches.status, MATCH_STATUS.FINISHED));
+                .where(and(ne(matches.status, MATCH_STATUS.FINISHED), eq(matches.source, 'manual')));
 
             await syncStatuses(active, onChange);
         } catch (e) {
