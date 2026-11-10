@@ -53,13 +53,10 @@ export function toMatchRow(match) {
     };
 }
 
-// Fetches matches between two dates (YYYY-MM-DD, inclusive) across every
-// competition on the plan. One request, whatever the number of matches.
-export async function fetchMatches({ dateFrom, dateTo, apiKey = process.env.FOOTBALL_DATA_API_KEY }) {
-    const url = `${BASE_URL}/matches?dateFrom=${dateFrom}&dateTo=${dateTo}`;
-
+// GET /matches with the given query, converted to rows. One request.
+async function requestMatches(query, apiKey) {
     // The key goes in a header, never in the URL
-    const res = await fetch(url, { headers: { 'X-Auth-Token': apiKey } });
+    const res = await fetch(`${BASE_URL}/matches?${query}`, { headers: { 'X-Auth-Token': apiKey } });
 
     if (!res.ok) {
         const body = await res.text();
@@ -69,4 +66,16 @@ export async function fetchMatches({ dateFrom, dateTo, apiKey = process.env.FOOT
     const { matches = [] } = await res.json();
 
     return matches.map(toMatchRow).filter(Boolean);
+}
+
+// Fetches matches between two dates (YYYY-MM-DD, inclusive) across every
+// competition on the plan. One request, whatever the number of matches.
+export function fetchMatches({ dateFrom, dateTo, apiKey = process.env.FOOTBALL_DATA_API_KEY }) {
+    return requestMatches(`dateFrom=${dateFrom}&dateTo=${dateTo}`, apiKey);
+}
+
+// Fetches specific matches by their football-data.org ids, whatever their date.
+// Used to finish off matches that fell out of the date window. One request.
+export function fetchMatchesByIds(ids, { apiKey = process.env.FOOTBALL_DATA_API_KEY } = {}) {
+    return requestMatches(`ids=${ids.map(encodeURIComponent).join(',')}`, apiKey);
 }
