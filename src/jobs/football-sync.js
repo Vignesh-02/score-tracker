@@ -4,16 +4,21 @@ import { matches } from '../db/schema.js';
 import { SOURCE, fetchMatches, fetchMatchesByIds } from '../providers/football-data.js';
 import { MATCH_STATUS } from '../validation/matches.js';
 
-// football-data.org's free plan allows 10 requests a minute; this uses 1,
-// plus 1 every CATCH_UP_INTERVAL_MS while there are stale matches
+// football-data.org's free plan allows 10 requests a minute; this uses 1, plus
+// up to 2 every SLOW_INTERVAL_MS (the far-ahead fixtures and stale matches)
 const DEFAULT_INTERVAL_MS = 60_000;
-const CATCH_UP_INTERVAL_MS = 10 * 60_000;
+const SLOW_INTERVAL_MS = 10 * 60_000;
 
 // Ids per catch-up request, oldest first; any more wait for the next catch-up
 const CATCH_UP_BATCH = 50;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const DAYS_AHEAD = 7;
+// Every tick: yesterday to NEAR_DAYS ahead, where scores and kick-off times
+// change. Every SLOW_INTERVAL_MS: the rest of the way to FAR_DAYS ahead, which
+// GET /matches?view=current lists as upcoming. Two requests because
+// football-data.org allows date ranges of up to 10 days.
+const NEAR_DAYS = 7;
+const FAR_DAYS = 14;
 const toDate = (time) => new Date(time).toISOString().slice(0, 10);
 
 const sameTime = (a, b) => (a?.getTime() ?? null) === (b?.getTime() ?? null);
@@ -108,7 +113,7 @@ export function startFootballSync({ intervalMs = DEFAULT_INTERVAL_MS, ...callbac
     syncState.enabled = true;
 
     let running = false;
-    let lastCatchUp = 0;
+    let lastSlowRun = 0;
 
     async function tick() {
         if (running) return;
@@ -116,18 +121,21 @@ export function startFootballSync({ intervalMs = DEFAULT_INTERVAL_MS, ...callbac
 
         try {
             const now = Date.now();
-            // Yesterday (catches matches that kicked off before midnight UTC) to a
-            // week ahead, matching what GET /matches?view=current shows as upcoming.
-            // Still one request; football-data.org allows ranges up to 10 days.
-            const rows = await fetchMatches({ dateFrom: toDate(now - DAY_MS), dateTo: toDate(now + DAYS_AHEAD * DAY_MS) });
+            // From yesterday, to catch matches that kicked off before midnight UTC
+            const rows = await fetchMatches({ dateFrom: toDate(now - DAY_MS), dateTo: toDate(now + NEAR_DAYS * DAY_MS) });
             await saveProviderMatches(rows, callbacks);
 
             syncState.lastSuccessAt = new Date().toISOString();
             syncState.matchesSeen = rows.length;
 
-            // Runs on the first tick, then every CATCH_UP_INTERVAL_MS
-            if (now - lastCatchUp >= CATCH_UP_INTERVAL_MS) {
-                lastCatchUp = now;
+            // Runs on the first tick, then every SLOW_INTERVAL_MS
+            if (now - lastSlowRun >= SLOW_INTERVAL_MS) {
+                lastSlowRun = now;
+                const farRows = await fetchMatches({
+                    dateFrom: toDate(now + (NEAR_DAYS + 1) * DAY_MS),
+                    dateTo: toDate(now + FAR_DAYS * DAY_MS),
+                });
+                await saveProviderMatches(farRows, callbacks);
                 await catchUpStaleMatches(callbacks, { now });
             }
         } catch (e) {
