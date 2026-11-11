@@ -22,16 +22,17 @@ function SocketLog() {
   })
 
   return (
-    <aside className="rounded-2xl border-[3px] border-ink bg-card shadow-brutal">
-      <div className="rounded-t-[13px] border-b-[3px] border-ink bg-sky px-5 py-4 text-on-accent">
-        <h2 className="text-xl font-bold">Socket events</h2>
+    <aside className="overflow-hidden rounded-lg border border-line bg-panel">
+      <div className="h-1 bg-cyan" aria-hidden />
+      <div className="border-b border-line px-4 py-3">
+        <h2 className="text-base font-bold tracking-[0.2em] text-cyan uppercase">Socket events</h2>
       </div>
       <ul className="max-h-[28rem] space-y-2 overflow-y-auto p-4">
         {events.length === 0 && <li className="text-muted">Waiting for messages…</li>}
         {events.map(({ at, message }, i) => (
-          <li key={i} className="rounded-lg border border-line p-2 text-sm">
+          <li key={i} className="rounded-md border border-line bg-board p-2 text-sm">
             <span className="font-mono text-xs text-muted">{timeFormat.format(at)}</span>{' '}
-            <span className="font-bold">{message.type}</span>
+            <span className="font-bold tracking-wide text-amber uppercase">{message.type}</span>
             {message.data?.homeTeam && (
               <span className="text-muted">
                 {' '}· {message.data.homeTeam} {message.data.homeScore}–{message.data.awayScore} {message.data.awayTeam}
@@ -55,14 +56,14 @@ function Matches() {
 
   if (error) {
     return (
-      <div className="rounded-2xl border-[3px] border-ink bg-card p-6 shadow-brutal">
-        <p className="font-bold text-live">Couldn't load matches</p>
+      <div className="rounded-lg border border-live/50 bg-panel p-6">
+        <p className="text-lg font-bold tracking-[0.15em] text-live uppercase">Couldn't load matches</p>
         <p className="mt-1 text-muted">{error.message}</p>
         <button
           type="button"
           onClick={() => refetch()}
           disabled={isRefetching}
-          className="mt-4 flex items-center gap-2 rounded-full border-2 border-ink bg-sun px-4 py-2 font-bold text-on-accent shadow-brutal-sm disabled:opacity-60"
+          className="mt-4 flex items-center gap-2 rounded-md bg-amber px-4 py-2 font-bold tracking-[0.15em] text-on-amber uppercase transition hover:brightness-110 disabled:opacity-60"
         >
           <RefreshCw className={`size-4 ${isRefetching ? 'animate-spin' : ''}`} aria-hidden />
           Try again
@@ -86,8 +87,8 @@ function Matches() {
       {filtered.length > 0 ? (
         <MatchGrid matches={filtered} />
       ) : (
-        <div className="rounded-2xl border-[3px] border-dashed border-ink p-10 text-center">
-          <p className="text-lg font-bold">{isFiltered ? 'No matches for these filters' : 'No matches yet'}</p>
+        <div className="rounded-lg border border-dashed border-line p-10 text-center">
+          <p className="text-xl font-bold tracking-[0.15em] uppercase">{isFiltered ? 'No matches for these filters' : 'No matches yet'}</p>
           <p className="mt-1 text-muted">
             {isFiltered
               ? 'Try another sport or competition.'
@@ -97,7 +98,7 @@ function Matches() {
             <button
               type="button"
               onClick={() => setFilters({ sport: ALL, competition: ALL })}
-              className="mt-4 rounded-full border-2 border-ink bg-card px-4 py-2 font-bold shadow-brutal-sm"
+              className="mt-4 rounded-md border border-amber px-4 py-2 font-bold tracking-[0.15em] text-amber uppercase transition hover:bg-amber/10"
             >
               Clear filters
             </button>
@@ -113,7 +114,7 @@ function MatchCount() {
   if (!matches) return null
 
   return (
-    <span className="rounded-md bg-ink px-2.5 py-1 font-mono text-sm font-bold text-page">API: {matches.length}</span>
+    <span className="font-mono text-xs text-muted">{matches.length} matches</span>
   )
 }
 
@@ -124,11 +125,11 @@ export default function App() {
     <div className="mx-auto max-w-7xl space-y-8 px-4 py-6 sm:px-6 sm:py-8">
       <Header />
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_22rem] lg:items-start">
+      <div className="grid gap-8 lg:grid-cols-[1fr_20rem] lg:items-start">
         <section aria-labelledby="matches-heading" className="min-w-0">
           <div className="mb-5 flex items-center justify-between gap-3">
-            <h2 id="matches-heading" className="border-l-4 border-sky pl-3 text-2xl font-bold">
-              Current Matches
+            <h2 id="matches-heading" className="text-2xl font-bold tracking-[0.12em] uppercase">
+              Matches
             </h2>
             <MatchCount />
           </div>

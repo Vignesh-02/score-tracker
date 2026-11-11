@@ -7,10 +7,10 @@ function Chip({ active, onClick, children }) {
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`flex items-center gap-1.5 rounded-full border-2 border-ink px-3.5 py-1.5 text-sm font-bold transition ${
+      className={`flex items-center gap-2 rounded-md border px-3.5 py-1.5 text-sm font-bold tracking-wider uppercase transition ${
         active
-          ? 'bg-ink text-page'
-          : 'bg-card shadow-brutal-sm hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none'
+          ? 'border-amber bg-amber/10 text-amber'
+          : 'border-line bg-panel text-muted hover:border-muted hover:text-ink'
       }`}
     >
       {children}
@@ -37,12 +37,12 @@ export function Filters({ options, filters, total, onChange }) {
       </div>
 
       {competitions.length > 0 && (
-        <label className="relative sm:ml-auto">
+        <label className="relative w-full sm:ml-auto sm:w-auto">
           <span className="sr-only">Competition</span>
           <select
             value={filters.competition}
             onChange={(e) => onChange({ competition: e.target.value })}
-            className="w-full appearance-none rounded-full border-2 border-ink bg-card py-1.5 pl-4 pr-9 text-sm font-bold shadow-brutal-sm sm:w-auto"
+            className="w-full appearance-none rounded-md border border-line bg-panel py-1.5 pr-9 pl-3.5 text-sm font-bold tracking-wider uppercase transition hover:border-muted focus:border-amber focus:outline-none sm:w-auto"
           >
             <option value={ALL}>All competitions</option>
             {competitions.map(({ value, count }) => (
@@ -51,7 +51,7 @@ export function Filters({ options, filters, total, onChange }) {
               </option>
             ))}
           </select>
-          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2" aria-hidden />
+          <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted" aria-hidden />
         </label>
       )}
     </div>

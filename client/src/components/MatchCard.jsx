@@ -1,18 +1,18 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { Clock } from 'lucide-react'
 import { useMatchSubscription } from '../live/hooks.js'
 import { STATUS, isOverdue } from '../lib/matches.js'
 import { formatCountdown, formatKickoff } from '../lib/format.js'
 import { useNow } from '../lib/useNow.js'
 
-function ScoreBox({ value, leading, scored }) {
+// One cell of the LED board. The leading side is fully lit; the other is dimmer.
+function ScoreBox({ value, leading, idle, scored }) {
+  const tone = idle ? 'text-muted' : leading ? 'text-amber glow-amber' : 'text-amber-dim'
+
   return (
     <div
-      className={`relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border-2 border-ink text-3xl font-extrabold tabular-nums transition-colors duration-500 ${
-        leading ? 'bg-sun text-on-accent' : 'bg-card'
-      }`}
+      className={`led-board relative grid h-16 w-14 shrink-0 place-items-center overflow-hidden rounded-md font-score text-5xl leading-none font-bold tabular-nums transition-colors duration-500 ${tone}`}
     >
-      {/* The old number slides out and the new one drops in */}
+      {/* The old number rolls out and the new one drops in */}
       <AnimatePresence mode="popLayout" initial={false}>
         <motion.span
           key={value}
@@ -29,8 +29,8 @@ function ScoreBox({ value, leading, scored }) {
       {scored && (
         <motion.span
           key={scored}
-          className="pointer-events-none absolute inset-0 bg-sun"
-          initial={{ opacity: 0.9 }}
+          className="pointer-events-none absolute inset-0 bg-amber mix-blend-screen"
+          initial={{ opacity: 0.85 }}
           animate={{ opacity: 0 }}
           transition={{ duration: 1.6, ease: 'easeOut' }}
           aria-hidden
@@ -40,24 +40,31 @@ function ScoreBox({ value, leading, scored }) {
   )
 }
 
-function TeamRow({ name, score, leading, scored }) {
+function TeamRow({ name, score, leading, idle, scored }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="min-w-0 truncate text-lg font-bold sm:text-xl" title={name}>
+      <span
+        className={`min-w-0 truncate text-xl font-semibold tracking-wide uppercase sm:text-2xl ${
+          leading ? 'text-ink' : 'text-ink/80'
+        }`}
+        title={name}
+      >
         {name}
       </span>
-      <ScoreBox value={score} leading={leading} scored={scored} />
+      <ScoreBox value={score} leading={leading} idle={idle} scored={scored} />
     </div>
   )
 }
 
 function StatusPill({ match, overdue }) {
+  const base = 'text-sm font-bold tracking-[0.15em] uppercase'
+
   if (match.status === STATUS.LIVE) {
     return (
-      <span className="flex items-center gap-1.5 font-semibold text-live">
-        <span className="relative flex size-2.5">
-          <span className="absolute inline-flex size-full animate-ping rounded-full bg-live opacity-60" />
-          <span className="relative inline-flex size-2.5 rounded-full bg-live" />
+      <span className={`flex items-center gap-2 text-live ${base}`}>
+        <span className="relative flex size-2">
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-live opacity-75" />
+          <span className="relative inline-flex size-2 rounded-full bg-live shadow-[0_0_8px_var(--color-live)]" />
         </span>
         Live
       </span>
@@ -65,14 +72,12 @@ function StatusPill({ match, overdue }) {
   }
 
   if (match.status === STATUS.FINISHED) {
-    return (
-      <span className="font-semibold text-muted">{match.sport === 'Football' ? 'Full time' : 'Final'}</span>
-    )
+    return <span className={`text-muted ${base}`}>{match.sport === 'Football' ? 'FT' : 'Final'}</span>
   }
 
-  if (overdue) return <span className="font-semibold text-warn">Awaiting update</span>
+  if (overdue) return <span className={`text-warn ${base}`}>Awaiting update</span>
 
-  return <span className="font-semibold text-muted">Upcoming</span>
+  return <span className={`text-amber ${base}`}>Upcoming</span>
 }
 
 function footerText(match, now, overdue) {
@@ -101,36 +106,34 @@ export function MatchCard({ match }) {
     <motion.article
       layout
       layoutId={`match-${match.id}`}
-      initial={{ opacity: 0, scale: 0.96 }}
+      initial={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.96 }}
+      exit={{ opacity: 0, scale: 0.97 }}
       transition={{ type: 'spring', stiffness: 400, damping: 34 }}
-      className={`relative flex flex-col rounded-2xl border-[3px] border-ink bg-card p-5 shadow-brutal ${
-        scored ? 'ring-4 ring-sun ring-offset-2 ring-offset-page' : ''
+      className={`relative flex flex-col overflow-hidden rounded-lg border bg-panel transition-[border-color,box-shadow] duration-500 ${
+        scored
+          ? 'border-amber shadow-[0_0_32px_-6px_rgb(255_176_0/0.6)]'
+          : isLive
+            ? 'glow-live border-live/50'
+            : 'border-line'
       }`}
       aria-label={`${match.homeTeam} vs ${match.awayTeam}`}
     >
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <span className="inline-block rounded-full border-2 border-ink px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider">
-            {match.sport}
-          </span>
-          {match.competition && (
-            <p className="mt-1.5 truncate text-sm text-muted" title={match.competition}>
-              {match.competition}
-            </p>
-          )}
-        </div>
-
-        <div className="flex shrink-0 items-center gap-2 text-sm">
+      {/* Top strip: competition on the left, status on the right */}
+      <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
+        <p className="min-w-0 truncate text-sm font-semibold tracking-[0.12em] text-muted uppercase" title={match.competition ?? match.sport}>
+          {match.competition ?? match.sport}
+        </p>
+        <div className="flex shrink-0 items-center gap-2">
           <AnimatePresence>
             {scored && (
               <motion.span
                 key={scored.at}
-                initial={{ opacity: 0, y: -6, scale: 0.8 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
+                initial={{ opacity: 0, scale: 0.6 }}
+                animate={{ opacity: [1, 0.35, 1, 0.35, 1], scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
-                className="rounded-full bg-sun px-2 py-0.5 text-xs font-extrabold uppercase text-on-accent"
+                transition={{ duration: 1.2 }}
+                className="rounded-sm bg-amber px-2 py-0.5 text-sm font-bold tracking-[0.15em] text-on-amber uppercase"
               >
                 {scoredLabel}
               </motion.span>
@@ -140,24 +143,25 @@ export function MatchCard({ match }) {
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2.5 px-4 py-4">
         <TeamRow
           name={match.homeTeam}
           score={showScores ? homeScore : '–'}
           leading={showScores && homeScore > awayScore}
+          idle={!showScores}
           scored={scored && scored.side !== 'away' ? scored.at : null}
         />
         <TeamRow
           name={match.awayTeam}
           score={showScores ? awayScore : '–'}
           leading={showScores && awayScore > homeScore}
+          idle={!showScores}
           scored={scored && scored.side !== 'home' ? scored.at : null}
         />
       </div>
 
-      <div className="mt-5 flex items-center gap-1.5 border-t-2 border-dashed border-line pt-4 text-sm text-muted">
-        <Clock className="size-4 shrink-0" aria-hidden />
-        <span className="truncate">{footerText(match, now, overdue)}</span>
+      <div className="mt-auto border-t border-line px-4 py-2.5 font-mono text-xs text-muted">
+        <span className="block truncate">{footerText(match, now, overdue)}</span>
       </div>
     </motion.article>
   )
@@ -165,17 +169,21 @@ export function MatchCard({ match }) {
 
 export function MatchCardSkeleton() {
   return (
-    <div className="animate-pulse rounded-2xl border-[3px] border-line bg-card p-5" aria-hidden>
-      <div className="mb-5 h-6 w-24 rounded-full bg-line" />
-      <div className="space-y-3">
+    <div className="animate-pulse overflow-hidden rounded-lg border border-line bg-panel" aria-hidden>
+      <div className="border-b border-line px-4 py-3">
+        <div className="h-4 w-32 rounded-sm bg-line" />
+      </div>
+      <div className="space-y-2.5 px-4 py-4">
         {[0, 1].map((i) => (
           <div key={i} className="flex items-center justify-between">
-            <div className="h-6 w-40 rounded bg-line" />
-            <div className="size-14 rounded-xl bg-line" />
+            <div className="h-6 w-40 rounded-sm bg-line" />
+            <div className="led-board h-16 w-14 rounded-md" />
           </div>
         ))}
       </div>
-      <div className="mt-6 h-4 w-32 rounded bg-line" />
+      <div className="border-t border-line px-4 py-3">
+        <div className="h-3 w-28 rounded-sm bg-line" />
+      </div>
     </div>
   )
 }

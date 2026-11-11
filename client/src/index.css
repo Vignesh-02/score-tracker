@@ -1,47 +1,56 @@
 @import "tailwindcss";
 
-/* Design tokens. Every colour is a token, so dark mode only redefines these. */
+/* Stadium scoreboard theme. Every colour is a token; components never use raw
+   hex values, so the whole look can be retuned here. It's dark by design, like
+   a floodlit scoreboard, so there's no separate light theme. */
 @theme {
-  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Khand", ui-sans-serif, system-ui, sans-serif; /* Indian Type Foundry; also covers Devanagari */
+  --font-score: "Rajdhani", "Khand", ui-sans-serif, sans-serif; /* the big digits and the wordmark */
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
-  --color-page: #f6f5ef;
-  --color-card: #ffffff;
-  --color-ink: #141414; /* text, borders and the offset shadow */
-  --color-muted: #66645c;
-  --color-line: #e4e2d8; /* light dividers inside cards */
+  --color-page: #08090b; /* the stadium at night */
+  --color-panel: #121418; /* cards and bars */
+  --color-board: #040506; /* the recessed LED panel behind scores */
+  --color-line: #23262d; /* panel edges and dividers */
+  --color-ink: #eeeee8; /* main text */
+  --color-muted: #858a93;
 
-  --color-sun: #f6d75a; /* yellow: header, buttons, highlighted scores */
-  --color-sun-soft: #fbefb4;
-  --color-sky: #b9e0f7; /* blue: commentary panel, "watching" state */
-  --color-on-accent: #141414; /* text on yellow or blue, in both themes */
+  --color-amber: #ffb000; /* lit LED digits, highlights */
+  --color-amber-dim: #8a6410; /* unlit / trailing score */
+  --color-on-amber: #0b0b0b; /* text on amber */
+  --color-cyan: #45c8ff; /* commentary, secondary info */
 
-  --color-live: #e0362c;
-  --color-ok: #1f9d55;
-  --color-warn: #c77700;
-
-  --shadow-brutal: 4px 4px 0 0 var(--color-ink);
-  --shadow-brutal-sm: 2px 2px 0 0 var(--color-ink);
+  --color-live: #ff3b30;
+  --color-ok: #2fd07a;
+  --color-warn: #ff8a1f;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-page: #111113;
-    --color-card: #1b1b1f;
-    --color-ink: #ecebe4;
-    --color-muted: #a3a197;
-    --color-line: #2e2e33;
-    --color-sun: #f2d04f;
-    --color-sun-soft: #3a3417;
-    --color-sky: #9fd2f0;
-    --color-live: #ff5a4f;
-    --color-ok: #3ccf7e;
-    --color-warn: #f0a33a;
-  }
+/* LED dot-matrix texture for score panels and the header board */
+@utility led-board {
+  background-color: var(--color-board);
+  background-image: radial-gradient(circle, rgb(255 176 0 / 0.08) 0.8px, transparent 1.1px);
+  background-size: 4px 4px;
+  box-shadow: inset 0 2px 6px rgb(0 0 0 / 0.8), inset 0 0 0 1px rgb(255 255 255 / 0.04);
+}
+
+/* The glow of lit LED segments */
+@utility glow-amber {
+  text-shadow: 0 0 2px rgb(255 176 0 / 0.9), 0 0 12px rgb(255 176 0 / 0.55), 0 0 28px rgb(255 140 0 / 0.25);
+}
+
+@utility glow-live {
+  box-shadow: 0 0 0 1px rgb(255 59 48 / 0.35), 0 0 24px -4px rgb(255 59 48 / 0.35);
+}
+
+html {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--color-page);
+  background-color: var(--color-page);
+  /* A faint floodlight wash from the top of the page */
+  background-image: radial-gradient(ellipse 80% 40% at 50% -10%, rgb(255 176 0 / 0.07), transparent 70%);
+  background-attachment: fixed;
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
