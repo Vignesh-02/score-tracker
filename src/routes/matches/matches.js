@@ -1,5 +1,5 @@
 import { Router } from  'express';
-import { and, asc, between, desc, eq, gte, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, between, desc, eq, gte, isNull, lte, or, sql } from 'drizzle-orm';
 import { MATCH_STATUS, createMatchSchema, listMatchesQuerySchema, matchIdParamSchema, updateScoreSchema } from '../../validation/matches.js';
 import { getMatchStatus } from '../../utils/match-status.js';
 import { syncStatuses } from '../../jobs/status-sync.js';
@@ -9,7 +9,7 @@ import { matches } from '../../db/schema.js';
 
 export const matchRouter = Router();
 
-const MAX_LIMIT = 100;
+const MAX_LIMIT = 200;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -17,9 +17,10 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // international break, when most leagues pause for 10 days or so.
 const UPCOMING_DAYS = 14;
 
-// Finished matches always shown, newest first, however long ago they were
-// played, so a quiet week still shows the last matchday of every league
-const RECENT_RESULTS = 40;
+// Finished matches always shown for each sport, newest first, however long ago
+// they were played, so a quiet week still shows the last matchday of every
+// league, and one busy sport can't push another's results out
+const RECENT_RESULTS_PER_SPORT = 30;
 
 // Results older than this are never "current", even if nothing newer exists
 const RESULTS_MAX_AGE_DAYS = 30;
@@ -28,9 +29,34 @@ const RESULTS_MAX_AGE_DAYS = 30;
 //   1. every live match
 //   2. scheduled matches from a day ago (a little late or postponed) to
 //      UPCOMING_DAYS ahead, soonest first
-//   3. the RECENT_RESULTS most recent finished matches, newest first
+//   3. the RECENT_RESULTS_PER_SPORT most recent finished matches of each
+//      sport, newest first
 // When there are more than `limit`, the furthest-away upcoming matches are cut
 // first, so results and live games always fit.
+function recentResults(now) {
+    // Numbers each sport's results 1, 2, 3… newest first. Sports typed by hand
+    // ("football", "Football") count as one.
+    const ranked = db
+        .select({
+            id: matches.id,
+            rank: sql`row_number() over (partition by lower(${matches.sport}) order by ${matches.startTime} desc)`.as('rank'),
+        })
+        .from(matches)
+        .where(and(
+            eq(matches.status, MATCH_STATUS.FINISHED),
+            gte(matches.startTime, new Date(now - RESULTS_MAX_AGE_DAYS * DAY_MS)),
+        ))
+        .as('ranked');
+
+    return db
+        .select({ match: matches })
+        .from(matches)
+        .innerJoin(ranked, eq(matches.id, ranked.id))
+        .where(lte(ranked.rank, RECENT_RESULTS_PER_SPORT))
+        .orderBy(desc(matches.startTime))
+        .then((rows) => rows.map((r) => r.match));
+}
+
 async function currentMatches(limit, now = Date.now()) {
     const { LIVE, SCHEDULED, FINISHED } = MATCH_STATUS;
 
@@ -46,10 +72,7 @@ async function currentMatches(limit, now = Date.now()) {
             ))
             .orderBy(sql`${matches.startTime} asc nulls last`)
             .limit(limit),
-        db.select().from(matches)
-            .where(and(eq(matches.status, FINISHED), gte(matches.startTime, new Date(now - RESULTS_MAX_AGE_DAYS * DAY_MS))))
-            .orderBy(desc(matches.startTime))
-            .limit(Math.min(RECENT_RESULTS, limit)),
+        recentResults(now),
     ]);
 
     const results = finished.slice(0, Math.max(0, limit - live.length));

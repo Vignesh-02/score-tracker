@@ -12,7 +12,7 @@ const isoDateTime = z.iso.datetime({ offset: true });
 const isValidIsoDate = (value) => isoDateTime.safeParse(value).success;
 
 export const listMatchesQuerySchema = z.object({
-  limit: z.coerce.number().int().positive().max(100).optional(),
+  limit: z.coerce.number().int().positive().max(200).optional(),
   // 'current': live, upcoming and recently finished matches, for the dashboard.
   // Leaving it out lists the most recently added matches.
   view: z.enum(['current']).optional(),

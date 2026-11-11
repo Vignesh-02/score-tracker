@@ -97,7 +97,7 @@ async function waitForServer(base = BASE) {
 before(async () => {
     server = spawn('node', ['src/index.js'], {
         // High limits, so the rate limiter doesn't block the rest of the suite
-        env: { ...process.env, PORT: String(TEST_PORT), HOST: '127.0.0.1', RATE_LIMIT_MAX: '100000', WS_RATE_LIMIT_MAX: '100000', FOOTBALL_DATA_API_KEY: '' },
+        env: { ...process.env, PORT: String(TEST_PORT), HOST: '127.0.0.1', RATE_LIMIT_MAX: '100000', WS_RATE_LIMIT_MAX: '100000', FOOTBALL_DATA_API_KEY: '', CRICKETDATA_API_KEY: '' },
         stdio: 'ignore',
     });
     await waitForServer();
@@ -216,6 +216,24 @@ describe('Provider sync', () => {
         assert.equal(rows.length, 1);
     });
 
+    it('reports a change in details (e.g. cricket status text) as a score change, and ignores key order', async () => {
+        const id = `${externalId}-details`;
+        const details = (statusText) => ({ format: 'test', statusText, innings: [{ side: 'home', number: 1, runs: 290, wickets: 3, overs: 94.2 }] });
+        await saveProviderMatches([row({ externalId: id, status: 'live', details: details('Day 1: Stumps') })], { onCreated: track });
+
+        // Same content, keys in another order: nothing to do
+        const reordered = { innings: details('Day 1: Stumps').innings, statusText: 'Day 1: Stumps', format: 'test' };
+        const unchanged = await saveProviderMatches([row({ externalId: id, status: 'live', details: reordered })]);
+        assert.deepEqual(unchanged, { created: 0, updated: 0 });
+
+        const scores = [];
+        const changed = await saveProviderMatches([row({ externalId: id, status: 'live', details: details('Day 2: 1st Session') })], {
+            onScoreChange: (m) => scores.push(m),
+        });
+        assert.deepEqual(changed, { created: 0, updated: 1 });
+        assert.equal(scores[0].details.statusText, 'Day 2: 1st Session');
+    });
+
     it('is not overridden by the time-based status sync', async () => {
         const now = Date.now();
         const [stale] = await db.insert(matches).values(row({
@@ -309,7 +327,7 @@ describe('Rate limiting', () => {
     before(async () => {
         limited = spawn('node', ['src/index.js'], {
             // No Arcjet here, so these tests only exercise the local limiter
-            env: { ...process.env, PORT: String(LIMIT_PORT), HOST: '127.0.0.1', ARCJET_KEY: '', TRUSTED_PROXIES: '127.0.0.1', RATE_LIMIT_MAX: '5', WS_RATE_LIMIT_MAX: '3', FOOTBALL_DATA_API_KEY: '' },
+            env: { ...process.env, PORT: String(LIMIT_PORT), HOST: '127.0.0.1', ARCJET_KEY: '', TRUSTED_PROXIES: '127.0.0.1', RATE_LIMIT_MAX: '5', WS_RATE_LIMIT_MAX: '3', FOOTBALL_DATA_API_KEY: '', CRICKETDATA_API_KEY: '' },
             stdio: 'ignore',
         });
         await waitForServer(LIMIT_BASE);
@@ -461,7 +479,7 @@ describe('GET /matches', () => {
         assert.equal(res.json.data.length, 1);
     });
 
-    for (const limit of ['abc', '0', '101', '2.5']) {
+    for (const limit of ['abc', '0', '201', '2.5']) {
         it(`rejects limit=${limit}`, async () => {
             const res = await request('GET', `/matches?limit=${limit}`);
             assert.equal(res.status, 400);
@@ -485,9 +503,9 @@ describe('GET /matches', () => {
         ]).returning();
         rows.forEach((r) => createdMatchIds.push(r.id));
 
-        const res = await request('GET', '/matches?view=current&limit=100');
+        const res = await request('GET', '/matches?view=current&limit=200');
         assert.equal(res.status, 200);
-        assert.ok(res.json.data.length <= 100);
+        assert.ok(res.json.data.length <= 200);
         const order = res.json.data.filter((m) => m.source === 'TEST-view').map((m) => m.homeTeam);
         assert.deepEqual(order, ['TEST live', 'TEST soon', 'TEST next week', 'TEST just finished']);
     });
@@ -745,7 +763,7 @@ describe('Shutdown and crash handling', () => {
             ? ['--import', `data:text/javascript,${encodeURIComponent(preload)}`, 'src/index.js']
             : ['src/index.js'];
         const child = spawn('node', args, {
-            env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', FOOTBALL_DATA_API_KEY: '' },
+            env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', FOOTBALL_DATA_API_KEY: '', CRICKETDATA_API_KEY: '' },
             stdio: 'ignore',
         });
         const exited = new Promise((resolve) => child.on('exit', (code) => resolve(code)));

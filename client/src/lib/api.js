@@ -12,7 +12,7 @@ async function getJson(path) {
   return body
 }
 
-export async function fetchMatches({ limit = 100 } = {}) {
+export async function fetchMatches({ limit = 200 } = {}) {
   const { data } = await getJson(`/matches?view=current&limit=${limit}`)
   return data
 }

@@ -23,6 +23,18 @@ const toDate = (time) => new Date(time).toISOString().slice(0, 10);
 
 const sameTime = (a, b) => (a?.getTime() ?? null) === (b?.getTime() ?? null);
 
+// Postgres jsonb doesn't keep key order, so compare with keys sorted
+function stableJson(value) {
+    if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+    if (value && typeof value === 'object') {
+        return `{${Object.keys(value).sort().map((k) => `${JSON.stringify(k)}:${stableJson(value[k])}`).join(',')}}`;
+    }
+    return JSON.stringify(value ?? null);
+}
+
+// Rows without `details` (football) leave the column alone, so it never counts as changed
+const sameDetails = (current, row) => !('details' in row) || stableJson(current) === stableJson(row.details);
+
 // Saves provider rows (from an adapter's fetchMatches) into `matches`:
 // inserts new ones and updates changed ones, then calls the matching callback
 // so the change can be broadcast. Unchanged matches cost no writes.
@@ -51,7 +63,10 @@ export async function saveProviderMatches(rows, { onCreated, onScoreChange, onSt
             continue;
         }
 
-        const scoreChanged = current.homeScore !== row.homeScore || current.awayScore !== row.awayScore;
+        // Cricket's innings and status text ("India need 32 runs") live in
+        // `details`; a change there is sent to viewers like a score change
+        const scoreChanged = current.homeScore !== row.homeScore || current.awayScore !== row.awayScore
+            || !sameDetails(current.details, row);
         const statusChanged = current.status !== row.status;
         const detailsChanged = current.homeTeam !== row.homeTeam || current.awayTeam !== row.awayTeam
             || current.competition !== row.competition || !sameTime(current.startTime, row.startTime);

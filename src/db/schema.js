@@ -19,6 +19,10 @@ export const matches = pgTable('matches', {
   source: text('source').notNull().default('manual'),
   // The provider's own match id; null for manual matches
   externalId: text('external_id'),
+  // Sport-specific extras that don't fit the columns above. For cricket:
+  // { format, statusText, innings: [{ side, number, runs, wickets, overs }] },
+  // with home_score/away_score holding each side's total runs. Null for football.
+  details: jsonb('details'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (table) => [
   // One row per provider match, so syncing updates it instead of adding duplicates.

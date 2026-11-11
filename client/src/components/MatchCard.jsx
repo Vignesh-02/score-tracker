@@ -1,57 +1,98 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { useMatchSubscription } from '../live/hooks.js'
 import { STATUS, isOverdue } from '../lib/matches.js'
+import { formatInnings, formatLabel, highlightedSide, inningsOf, isCricket } from '../lib/cricket.js'
 import { formatCountdown, formatKickoff } from '../lib/format.js'
 import { useNow } from '../lib/useNow.js'
 
-// One cell of the LED board. The leading side is fully lit; the other is dimmer.
-function ScoreBox({ value, leading, idle, scored }) {
-  const tone = idle ? 'text-muted' : leading ? 'text-amber glow-amber' : 'text-amber-dim'
+const ledTone = (idle, lit) => (idle ? 'text-muted' : lit ? 'text-amber glow-amber' : 'text-amber-dim')
 
+// The amber wash that plays over a score cell when it changes. `at` is the
+// update's timestamp, so each new score replays it.
+function ScoreFlash({ at }) {
+  if (!at) return null
+  return (
+    <motion.span
+      key={at}
+      className="pointer-events-none absolute inset-0 bg-amber mix-blend-screen"
+      initial={{ opacity: 0.85 }}
+      animate={{ opacity: 0 }}
+      transition={{ duration: 1.6, ease: 'easeOut' }}
+      aria-hidden
+    />
+  )
+}
+
+// The old value rolls out and the new one drops in
+function Rolling({ value, className }) {
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.span
+        key={value}
+        className={className}
+        initial={{ y: '-110%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '110%' }}
+        transition={{ type: 'spring', stiffness: 500, damping: 32 }}
+      >
+        {value}
+      </motion.span>
+    </AnimatePresence>
+  )
+}
+
+// Football: one LED cell with the goals. The leading side is fully lit.
+function GoalsBox({ value, lit, idle, scored }) {
   return (
     <div
-      className={`led-board relative grid h-16 w-14 shrink-0 place-items-center overflow-hidden rounded-md font-score text-5xl leading-none font-bold tabular-nums transition-colors duration-500 ${tone}`}
+      className={`led-board relative grid h-16 w-14 shrink-0 place-items-center overflow-hidden rounded-md font-score text-5xl leading-none font-bold tabular-nums transition-colors duration-500 ${ledTone(idle, lit)}`}
     >
-      {/* The old number rolls out and the new one drops in */}
-      <AnimatePresence mode="popLayout" initial={false}>
-        <motion.span
-          key={value}
-          initial={{ y: '-110%' }}
-          animate={{ y: 0 }}
-          exit={{ y: '110%' }}
-          transition={{ type: 'spring', stiffness: 500, damping: 32 }}
-        >
-          {value}
-        </motion.span>
-      </AnimatePresence>
-
-      {/* scored is the update's timestamp, so each new score replays the flash */}
-      {scored && (
-        <motion.span
-          key={scored}
-          className="pointer-events-none absolute inset-0 bg-amber mix-blend-screen"
-          initial={{ opacity: 0.85 }}
-          animate={{ opacity: 0 }}
-          transition={{ duration: 1.6, ease: 'easeOut' }}
-          aria-hidden
-        />
-      )}
+      <Rolling value={value} />
+      <ScoreFlash at={scored} />
     </div>
   )
 }
 
-function TeamRow({ name, score, leading, idle, scored }) {
+// Cricket: the current innings ("213/4") with overs underneath, and earlier
+// innings in small type before it ("434 & 120/2"). The batting side is lit.
+function InningsBox({ innings, lit, idle, live, scored }) {
+  const current = innings.at(-1)
+  const earlier = innings.slice(0, -1)
+
+  return (
+    <div
+      className={`led-board relative flex h-16 min-w-26 shrink-0 flex-col items-end justify-center overflow-hidden rounded-md px-3 transition-colors duration-500 ${ledTone(idle || !current, lit)}`}
+    >
+      <div className="flex items-baseline gap-1.5 font-score leading-none font-bold tabular-nums">
+        {earlier.map((i) => (
+          <span key={i.number} className="text-lg opacity-70">
+            {formatInnings(i)} &amp;
+          </span>
+        ))}
+        {current ? (
+          <Rolling value={formatInnings(current)} className="text-4xl" />
+        ) : live ? (
+          <span className="font-sans text-sm tracking-[0.15em] uppercase">Yet to bat</span>
+        ) : (
+          <span className="text-4xl">–</span>
+        )}
+      </div>
+      {current && <span className="mt-1 font-mono text-[10px] text-muted">{current.overs} ov</span>}
+      <ScoreFlash at={scored} />
+    </div>
+  )
+}
+
+function TeamRow({ name, lit, children }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <span
-        className={`min-w-0 truncate text-xl font-semibold tracking-wide uppercase sm:text-2xl ${
-          leading ? 'text-ink' : 'text-ink/80'
-        }`}
+        className={`min-w-0 truncate text-xl font-semibold tracking-wide uppercase sm:text-2xl ${lit ? 'text-ink' : 'text-ink/80'}`}
         title={name}
       >
         {name}
       </span>
-      <ScoreBox value={score} leading={leading} idle={idle} scored={scored} />
+      {children}
     </div>
   )
 }
@@ -72,7 +113,8 @@ function StatusPill({ match, overdue }) {
   }
 
   if (match.status === STATUS.FINISHED) {
-    return <span className={`text-muted ${base}`}>{match.sport === 'Football' ? 'FT' : 'Final'}</span>
+    const label = match.sport === 'Football' ? 'FT' : isCricket(match) ? 'Result' : 'Final'
+    return <span className={`text-muted ${base}`}>{label}</span>
   }
 
   if (overdue) return <span className={`text-warn ${base}`}>Awaiting update</span>
@@ -81,6 +123,11 @@ function StatusPill({ match, overdue }) {
 }
 
 function footerText(match, now, overdue) {
+  // Cricket's own summary says more than a time: "India need 32 runs from 18 balls"
+  if (isCricket(match) && match.status !== STATUS.SCHEDULED && match.details?.statusText) {
+    return match.details.statusText
+  }
+
   const kickoff = formatKickoff(match.startTime, now)
 
   if (match.status === STATUS.LIVE) return `Started ${kickoff}`
@@ -89,18 +136,50 @@ function footerText(match, now, overdue) {
   return `${kickoff} · ${formatCountdown(match.startTime, now)}`
 }
 
+function celebrationLabel(match, scored) {
+  if (!scored) return null
+  if (isCricket(match)) return scored.wicket ? 'Wicket!' : null
+  return match.sport === 'Football' ? 'Goal!' : 'Score!'
+}
+
 export function MatchCard({ match }) {
   const now = useNow()
   const isLive = match.status === STATUS.LIVE
   const isUpcoming = match.status === STATUS.SCHEDULED
   const overdue = isOverdue(match, now)
+  const cricket = isCricket(match)
 
   // score_update is only sent to subscribers, so every live card on screen subscribes
   useMatchSubscription(isLive ? match.id : null)
 
   const { homeScore, awayScore, _scored: scored } = match
-  const showScores = !isUpcoming
-  const scoredLabel = match.sport === 'Football' ? 'Goal!' : 'Score!'
+  const label = celebrationLabel(match, scored)
+  const format = cricket ? formatLabel(match) : null
+
+  // Which side is lit: football's leader, or cricket's batting side / winner
+  const litSide = cricket
+    ? highlightedSide(match)
+    : isUpcoming ? null : homeScore > awayScore ? 'home' : awayScore > homeScore ? 'away' : null
+
+  const flashFor = (side) => (scored && scored.side !== (side === 'home' ? 'away' : 'home') ? scored.at : null)
+
+  const scoreCell = (side) =>
+    cricket ? (
+      <InningsBox
+        innings={inningsOf(match, side)}
+        lit={litSide === side}
+        idle={isUpcoming}
+        live={isLive}
+        scored={flashFor(side)}
+      />
+    ) : (
+      <GoalsBox
+        value={isUpcoming ? '–' : side === 'home' ? homeScore : awayScore}
+        lit={litSide === side}
+        idle={isUpcoming}
+        scored={flashFor(side)}
+      />
+    )
 
   return (
     <motion.article
@@ -111,7 +190,7 @@ export function MatchCard({ match }) {
       exit={{ opacity: 0, scale: 0.97 }}
       transition={{ type: 'spring', stiffness: 400, damping: 34 }}
       className={`relative flex flex-col overflow-hidden rounded-lg border bg-panel transition-[border-color,box-shadow] duration-500 ${
-        scored
+        label
           ? 'border-amber shadow-[0_0_32px_-6px_rgb(255_176_0/0.6)]'
           : isLive
             ? 'glow-live border-live/50'
@@ -119,14 +198,21 @@ export function MatchCard({ match }) {
       }`}
       aria-label={`${match.homeTeam} vs ${match.awayTeam}`}
     >
-      {/* Top strip: competition on the left, status on the right */}
+      {/* Top strip: competition (and cricket format) on the left, status on the right */}
       <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
-        <p className="min-w-0 truncate text-sm font-semibold tracking-[0.12em] text-muted uppercase" title={match.competition ?? match.sport}>
-          {match.competition ?? match.sport}
-        </p>
+        <div className="flex min-w-0 items-center gap-2">
+          {format && (
+            <span className="shrink-0 rounded-sm border border-cyan/40 px-1.5 text-xs font-bold tracking-[0.15em] text-cyan uppercase">
+              {format}
+            </span>
+          )}
+          <p className="min-w-0 truncate text-sm font-semibold tracking-[0.12em] text-muted uppercase" title={match.competition ?? match.sport}>
+            {match.competition ?? match.sport}
+          </p>
+        </div>
         <div className="flex shrink-0 items-center gap-2">
           <AnimatePresence>
-            {scored && (
+            {label && (
               <motion.span
                 key={scored.at}
                 initial={{ opacity: 0, scale: 0.6 }}
@@ -135,7 +221,7 @@ export function MatchCard({ match }) {
                 transition={{ duration: 1.2 }}
                 className="rounded-sm bg-amber px-2 py-0.5 text-sm font-bold tracking-[0.15em] text-on-amber uppercase"
               >
-                {scoredLabel}
+                {label}
               </motion.span>
             )}
           </AnimatePresence>
@@ -144,24 +230,22 @@ export function MatchCard({ match }) {
       </div>
 
       <div className="space-y-2.5 px-4 py-4">
-        <TeamRow
-          name={match.homeTeam}
-          score={showScores ? homeScore : '–'}
-          leading={showScores && homeScore > awayScore}
-          idle={!showScores}
-          scored={scored && scored.side !== 'away' ? scored.at : null}
-        />
-        <TeamRow
-          name={match.awayTeam}
-          score={showScores ? awayScore : '–'}
-          leading={showScores && awayScore > homeScore}
-          idle={!showScores}
-          scored={scored && scored.side !== 'home' ? scored.at : null}
-        />
+        <TeamRow name={match.homeTeam} lit={litSide === 'home'}>
+          {scoreCell('home')}
+        </TeamRow>
+        <TeamRow name={match.awayTeam} lit={litSide === 'away'}>
+          {scoreCell('away')}
+        </TeamRow>
       </div>
 
-      <div className="mt-auto border-t border-line px-4 py-2.5 font-mono text-xs text-muted">
-        <span className="block truncate">{footerText(match, now, overdue)}</span>
+      <div
+        className={`mt-auto border-t border-line px-4 py-2.5 ${
+          cricket && !isUpcoming ? 'text-sm font-medium tracking-wide text-ink/80' : 'font-mono text-xs text-muted'
+        }`}
+      >
+        <span className="block truncate" title={footerText(match, now, overdue)}>
+          {footerText(match, now, overdue)}
+        </span>
       </div>
     </motion.article>
   )
