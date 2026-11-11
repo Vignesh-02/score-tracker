@@ -15,6 +15,13 @@
       "when": 1793715166495,
       "tag": "0001_match_source",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794380226384,
+      "tag": "0002_cricket_details",
+      "breakpoints": true
     }
   ]
 }

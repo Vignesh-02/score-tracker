@@ -12,7 +12,7 @@ export function Header() {
             <span>Scores</span>
           </h1>
           <p className="mt-2 text-sm font-semibold tracking-[0.25em] text-muted uppercase">
-            Live football scores, as they happen
+            Live football &amp; cricket scores, as they happen
           </p>
         </div>
         <ConnectionBadge />

@@ -9,6 +9,7 @@ import { securityMiddleware } from './arcjet.js';
 import { httpRateLimit, trustedProxies } from './rate-limit.js';
 import { startStatusSync } from './jobs/status-sync.js';
 import { startFootballSync } from './jobs/football-sync.js';
+import { startCricketSync } from './jobs/cricket-sync.js';
 import { healthRouter } from './routes/health.js';
 import { pool } from './db/db.js';
 
@@ -78,12 +79,18 @@ app.locals.broadcastStatusChange = broadcastStatusChange;
 // Every 30s, move matches to live/finished and tell connected clients
 const stopStatusSync = startStatusSync({ onChange: broadcastStatusChange });
 
-// Every 60s, import European football from football-data.org and broadcast changes
-const stopFootballSync = startFootballSync({
+const providerCallbacks = {
     onCreated: broadcastMatchCreated,
     onScoreChange: (match) => broadcastScoreUpdate(match.id, match),
     onStatusChange: broadcastStatusChange,
-});
+};
+
+// Every 60s, import European football from football-data.org and broadcast changes
+const stopFootballSync = startFootballSync(providerCallbacks);
+
+// Every 20 min or more (paced to the free plan's 100 requests a day), import
+// cricket from CricketData.org
+const stopCricketSync = startCricketSync(providerCallbacks);
 
 
 // ---------- shutdown and crash handling ----------
@@ -105,6 +112,7 @@ async function shutdown(reason, exitCode = 0) {
     try {
         stopStatusSync();
         stopFootballSync();
+        stopCricketSync();
         await closeWebSockets();
         // Stops accepting connections and waits for in-flight requests
         await new Promise((resolve) => server.close(() => resolve()));

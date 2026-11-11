@@ -95,15 +95,23 @@ export function upsertMatch(list = [], match) {
   return next
 }
 
-// Like upsertMatch, but also records which side scored so the card can
-// celebrate it. `_scored` is a local UI field; the server never sends it.
+// Total wickets across all innings; 0 for sports without innings
+const wicketsOf = (match) => (match?.details?.innings ?? []).reduce((sum, i) => sum + i.wickets, 0)
+
+// Like upsertMatch, but also records which side scored (and, in cricket,
+// whether a wicket fell) so the card can celebrate it. `_scored` is a local
+// UI field; the server never sends it.
 export function applyScoreUpdate(list = [], match, at) {
   const previous = list.find((m) => m.id === match.id)
   const home = previous ? match.homeScore - previous.homeScore : 0
   const away = previous ? match.awayScore - previous.awayScore : 0
+  const wicket = previous ? wicketsOf(match) > wicketsOf(previous) : false
 
-  const side = home > 0 && away > 0 ? 'both' : home > 0 ? 'home' : away > 0 ? 'away' : null
-  return upsertMatch(list, { ...match, _scored: side ? { side, at } : null })
+  let side = home > 0 && away > 0 ? 'both' : home > 0 ? 'home' : away > 0 ? 'away' : null
+  // A wicket with no runs added: flash the batting side
+  if (!side && wicket) side = match.details?.innings?.at(-1)?.side ?? 'both'
+
+  return upsertMatch(list, { ...match, _scored: side ? { side, at, wicket } : null })
 }
 
 // Removes the celebration marker once its animation has played
