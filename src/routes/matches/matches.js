@@ -1,5 +1,5 @@
 import { Router } from  'express';
-import { and, between, desc, eq, gte, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, between, desc, eq, gte, isNull, or, sql } from 'drizzle-orm';
 import { MATCH_STATUS, createMatchSchema, listMatchesQuerySchema, matchIdParamSchema, updateScoreSchema } from '../../validation/matches.js';
 import { getMatchStatus } from '../../utils/match-status.js';
 import { syncStatuses } from '../../jobs/status-sync.js';
@@ -13,32 +13,49 @@ const MAX_LIMIT = 100;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// What the dashboard shows: every live match, scheduled matches from a day ago
-// (a little late or postponed) to a week ahead, and matches finished in the
-// last 2 days. Live first, then upcoming soonest first, then finished most
-// recent first, so the limit cuts old results before anything current.
-function currentMatches(limit, now = Date.now()) {
+// How far ahead the dashboard looks for upcoming matches. Two weeks covers an
+// international break, when most leagues pause for 10 days or so.
+const UPCOMING_DAYS = 14;
+
+// Finished matches always shown, newest first, however long ago they were
+// played, so a quiet week still shows the last matchday of every league
+const RECENT_RESULTS = 40;
+
+// Results older than this are never "current", even if nothing newer exists
+const RESULTS_MAX_AGE_DAYS = 30;
+
+// What the dashboard shows, in this order:
+//   1. every live match
+//   2. scheduled matches from a day ago (a little late or postponed) to
+//      UPCOMING_DAYS ahead, soonest first
+//   3. the RECENT_RESULTS most recent finished matches, newest first
+// When there are more than `limit`, the furthest-away upcoming matches are cut
+// first, so results and live games always fit.
+async function currentMatches(limit, now = Date.now()) {
     const { LIVE, SCHEDULED, FINISHED } = MATCH_STATUS;
 
-    return db
-        .select()
-        .from(matches)
-        .where(or(
-            eq(matches.status, LIVE),
-            and(
+    const [live, upcoming, finished] = await Promise.all([
+        db.select().from(matches)
+            .where(eq(matches.status, LIVE))
+            .orderBy(asc(matches.startTime))
+            .limit(limit),
+        db.select().from(matches)
+            .where(and(
                 eq(matches.status, SCHEDULED),
-                or(isNull(matches.startTime), between(matches.startTime, new Date(now - DAY_MS), new Date(now + 7 * DAY_MS))),
-            ),
-            and(eq(matches.status, FINISHED), gte(matches.startTime, new Date(now - 2 * DAY_MS))),
-        ))
-        .orderBy(
-            sql`case ${matches.status} when ${LIVE} then 0 when ${SCHEDULED} then 1 else 2 end`,
-            // Live and upcoming: earliest first. Finished rows all get null here,
-            // so the next rule orders them instead.
-            sql`case when ${matches.status} <> ${FINISHED} then ${matches.startTime} end asc nulls last`,
-            desc(matches.startTime),
-        )
-        .limit(limit);
+                or(isNull(matches.startTime), between(matches.startTime, new Date(now - DAY_MS), new Date(now + UPCOMING_DAYS * DAY_MS))),
+            ))
+            .orderBy(sql`${matches.startTime} asc nulls last`)
+            .limit(limit),
+        db.select().from(matches)
+            .where(and(eq(matches.status, FINISHED), gte(matches.startTime, new Date(now - RESULTS_MAX_AGE_DAYS * DAY_MS))))
+            .orderBy(desc(matches.startTime))
+            .limit(Math.min(RECENT_RESULTS, limit)),
+    ]);
+
+    const results = finished.slice(0, Math.max(0, limit - live.length));
+    const upcomingRoom = Math.max(0, limit - live.length - results.length);
+
+    return [...live, ...upcoming.slice(0, upcomingRoom), ...results];
 }
 
 matchRouter.get('/', async (req,res) => {

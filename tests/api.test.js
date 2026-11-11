@@ -468,24 +468,34 @@ describe('GET /matches', () => {
         });
     }
 
-    it('view=current lists live, then upcoming, then recent results, and leaves out old ones', async () => {
+    it('view=current lists live, then upcoming up to 2 weeks ahead, then latest results', async () => {
         const now = Date.now();
         const hour = 3600e3, day = 86400e3;
         // A non-manual source, so the time-based status sync leaves these alone
         const base = { source: 'TEST-view', sport: 'TEST', homeTeam: 'TEST', awayTeam: 'TEST' };
+        const at = (offset) => ({ startTime: new Date(now + offset), endTime: new Date(now + offset + hour) });
         const rows = await db.insert(matches).values([
-            { ...base, homeTeam: 'TEST live', status: 'live', startTime: new Date(now - hour), endTime: new Date(now + hour) },
-            { ...base, homeTeam: 'TEST soon', status: 'scheduled', startTime: new Date(now + 3 * day), endTime: new Date(now + 3 * day + hour) },
-            { ...base, homeTeam: 'TEST recent', status: 'finished', startTime: new Date(now - day), endTime: new Date(now - day + hour) },
-            { ...base, homeTeam: 'TEST old', status: 'finished', startTime: new Date(now - 5 * day), endTime: new Date(now - 5 * day + hour) },
-            { ...base, homeTeam: 'TEST far', status: 'scheduled', startTime: new Date(now + 10 * day), endTime: new Date(now + 10 * day + hour) },
+            { ...base, homeTeam: 'TEST live', status: 'live', ...at(-hour) },
+            { ...base, homeTeam: 'TEST soon', status: 'scheduled', ...at(3 * day) },
+            { ...base, homeTeam: 'TEST next week', status: 'scheduled', ...at(9 * day) },
+            { ...base, homeTeam: 'TEST too far', status: 'scheduled', ...at(20 * day) },
+            // Just finished, so it's always among the most recent results
+            { ...base, homeTeam: 'TEST just finished', status: 'finished', startTime: new Date(now - 2 * hour), endTime: new Date(now - 60e3) },
+            { ...base, homeTeam: 'TEST ancient', status: 'finished', ...at(-60 * day) },
         ]).returning();
         rows.forEach((r) => createdMatchIds.push(r.id));
 
         const res = await request('GET', '/matches?view=current&limit=100');
         assert.equal(res.status, 200);
+        assert.ok(res.json.data.length <= 100);
         const order = res.json.data.filter((m) => m.source === 'TEST-view').map((m) => m.homeTeam);
-        assert.deepEqual(order, ['TEST live', 'TEST soon', 'TEST recent']);
+        assert.deepEqual(order, ['TEST live', 'TEST soon', 'TEST next week', 'TEST just finished']);
+    });
+
+    it('view=current keeps room for results when the limit is small', async () => {
+        const res = await request('GET', '/matches?view=current&limit=3');
+        assert.equal(res.status, 200);
+        assert.ok(res.json.data.length <= 3);
     });
 
     it('rejects an unknown view', async () => {

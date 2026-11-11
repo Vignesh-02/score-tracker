@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { AnimatePresence, LayoutGroup } from 'motion/react'
-import { CalendarClock, CircleCheck, Radio } from 'lucide-react'
 import { MatchCard, MatchCardSkeleton } from './MatchCard.jsx'
 import { groupMatches } from '../lib/matches.js'
 import { useNow } from '../lib/useNow.js'
@@ -9,17 +8,18 @@ import { useNow } from '../lib/useNow.js'
 const FINISHED_PREVIEW = 6
 
 // count can differ from matches.length when only some are shown
-function Section({ title, icon: Icon, accent, matches, count = matches.length, footer }) {
+function Section({ title, accent, matches, count = matches.length, footer }) {
   if (matches.length === 0) return null
 
   return (
     <section aria-label={title}>
-      <h3 className="mb-4 flex items-center gap-2 text-lg font-bold">
-        <Icon className={`size-5 ${accent}`} aria-hidden />
+      <h3 className="mb-4 flex items-center gap-3 text-base font-bold tracking-[0.2em] uppercase">
+        <span className={`h-4 w-1 rounded-full ${accent}`} aria-hidden />
         {title}
-        <span className="rounded-md border-2 border-ink px-1.5 font-mono text-xs">{count}</span>
+        <span className="font-mono text-xs font-medium tracking-normal text-muted">{count}</span>
+        <span className="h-px flex-1 bg-line" aria-hidden />
       </h3>
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
         <AnimatePresence initial={false}>
           {matches.map((match) => (
             <MatchCard key={match.id} match={match} />
@@ -43,12 +43,11 @@ export function MatchGrid({ matches }) {
     // LayoutGroup lets a card animate from one section to another, e.g. Live → Finished
     <LayoutGroup>
       <div className="space-y-10">
-        <Section title="Live now" icon={Radio} accent="text-live" matches={live} />
-        <Section title="Upcoming" icon={CalendarClock} accent="text-warn" matches={upcoming} />
+        <Section title="Live now" accent="bg-live" matches={live} />
+        <Section title="Upcoming" accent="bg-amber" matches={upcoming} />
         <Section
-          title="Finished"
-          icon={CircleCheck}
-          accent="text-ok"
+          title="Full time"
+          accent="bg-muted"
           matches={visibleFinished}
           count={finished.length}
           footer={
@@ -57,9 +56,9 @@ export function MatchGrid({ matches }) {
               <button
                 type="button"
                 onClick={() => setShowAllFinished((v) => !v)}
-                className="mt-5 w-full rounded-xl border-2 border-dashed border-ink py-2.5 font-bold transition hover:bg-card"
+                className="mt-4 w-full rounded-md border border-dashed border-line py-2.5 text-sm font-bold tracking-[0.15em] text-muted uppercase transition hover:border-amber hover:text-amber"
               >
-                {showAllFinished ? 'Show fewer' : `Show ${hiddenCount} more finished`}
+                {showAllFinished ? 'Show fewer' : `Show ${hiddenCount} more results`}
               </button>
             )
           }
@@ -71,7 +70,7 @@ export function MatchGrid({ matches }) {
 
 export function MatchGridSkeleton() {
   return (
-    <div className="grid gap-5 sm:grid-cols-2">
+    <div className="grid gap-4 sm:grid-cols-2">
       {[0, 1, 2, 3].map((i) => (
         <MatchCardSkeleton key={i} />
       ))}
