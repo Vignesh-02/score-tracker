@@ -39,6 +39,30 @@ export function groupMatches(list, now) {
   }
 }
 
+// The three tabs, and which group of groupMatches() each one shows
+export const TAB = { LIVE: 'live', FIXTURES: 'fixtures', RESULTS: 'results' }
+export const TABS = [TAB.LIVE, TAB.FIXTURES, TAB.RESULTS]
+
+export function matchesForTab(groups, tab) {
+  if (tab === TAB.FIXTURES) return groups.upcoming
+  if (tab === TAB.RESULTS) return groups.finished
+  return groups.live
+}
+
+// Splits an already sorted list into days, keeping the order. Overdue fixtures
+// get their own group, and matches without a time go in 'tbc'.
+export function groupByDay(list, now) {
+  const days = new Map()
+
+  for (const match of list) {
+    const key = isOverdue(match, now) ? 'overdue' : match.startTime ? new Date(match.startTime).toDateString() : 'tbc'
+    if (!days.has(key)) days.set(key, [])
+    days.get(key).push(match)
+  }
+
+  return [...days].map(([key, matches]) => ({ key, matches }))
+}
+
 export const ALL = 'all'
 
 // Sports are typed by hand for manual matches ("football" vs "Football"),
@@ -75,11 +99,19 @@ function countBy(list, key) {
     .sort((a, b) => a.value.localeCompare(b.value))
 }
 
-// Sports across all matches; competitions within the selected sport
-export function filterOptions(list, sport) {
+// Sports across all matches; competitions within the selected sport. Every
+// option comes from the whole list, so none disappears when a tab is empty,
+// but the counts are for `visible` (the open tab's matches).
+export function filterOptions(list, sport, visible = list) {
+  const inSport = (items) => (sport === ALL ? items : items.filter((m) => sameText(m.sport, sport)))
+  const tally = (key, items) => (option) => ({
+    ...option,
+    count: items.filter((m) => sameText(m[key], option.value)).length,
+  })
+
   return {
-    sports: countBy(list, 'sport'),
-    competitions: countBy(sport === ALL ? list : list.filter((m) => sameText(m.sport, sport)), 'competition'),
+    sports: countBy(list, 'sport').map(tally('sport', visible)),
+    competitions: countBy(inSport(list), 'competition').map(tally('competition', inSport(visible))),
   }
 }
 
