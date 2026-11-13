@@ -87,6 +87,13 @@ uses real visitor IPs. Server-specific settings (`HOST`, `PORT`,
 sudo -u scoretracker /srv/score-tracker/deploy/deploy.sh
 ```
 
+If a deploy changes `deploy/score-tracker.service`, install it again first:
+
+```bash
+sudo cp /srv/score-tracker/deploy/score-tracker.service /etc/systemd/system/
+sudo systemctl daemon-reload
+```
+
 Restarting is graceful: in-flight requests finish, WebSocket clients get
 "going away" (1001) and reconnect within a few seconds.
 

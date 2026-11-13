@@ -76,21 +76,30 @@ app.locals.broadcastCommentary = broadcastCommentary;
 app.locals.broadcastScoreUpdate = broadcastScoreUpdate;
 app.locals.broadcastStatusChange = broadcastStatusChange;
 
-// Every 30s, move matches to live/finished and tell connected clients
-const stopStatusSync = startStatusSync({ onChange: broadcastStatusChange });
-
 const providerCallbacks = {
     onCreated: broadcastMatchCreated,
     onScoreChange: (match) => broadcastScoreUpdate(match.id, match),
     onStatusChange: broadcastStatusChange,
 };
 
-// Every 60s, import European football from football-data.org and broadcast changes
-const stopFootballSync = startFootballSync(providerCallbacks);
+// The background jobs start only once the server is listening (see the end of
+// this file). If the port is taken, the process exits before any job runs, so a
+// crash loop under systemd can't spend the providers' daily request limits.
+let stopStatusSync = () => {};
+let stopFootballSync = () => {};
+let stopCricketSync = () => {};
 
-// Every 20 min or more (paced to the free plan's 100 requests a day), import
-// cricket from CricketData.org
-const stopCricketSync = startCricketSync(providerCallbacks);
+function startJobs() {
+    // Every 30s, move matches to live/finished and tell connected clients
+    stopStatusSync = startStatusSync({ onChange: broadcastStatusChange });
+
+    // Every 60s, import European football from football-data.org and broadcast changes
+    stopFootballSync = startFootballSync(providerCallbacks);
+
+    // Every 20 min or more (paced to the free plan's 100 requests a day), import
+    // cricket from CricketData.org
+    stopCricketSync = startCricketSync(providerCallbacks);
+}
 
 
 // ---------- shutdown and crash handling ----------
@@ -146,5 +155,7 @@ server.listen(PORT, HOST, () => {
 
     console.log(`Server is live on ${baseUrl}`);
     console.log(`Websocket server is running on ${baseUrl.replace('http', 'ws')}/ws`);
+
+    if (!shuttingDown) startJobs();
 });
  

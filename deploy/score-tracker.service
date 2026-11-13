@@ -33,9 +33,14 @@ Environment=PORT=8000
 # Nginx's address, so req.ip and rate limits use the real visitor's IP
 Environment=TRUSTED_PROXIES=127.0.0.1
 
-# Restart 2s after any exit (a crash exits with code 1 by design)
+# Restart 2s after any exit (a crash exits with code 1 by design). If it keeps
+# crashing, the wait grows step by step to 2 minutes, so a crash loop (e.g. the
+# port is taken) retries slowly instead of every 2s. Needs systemd 254+
+# (Ubuntu 24.04); older versions ignore these two lines and keep the 2s.
 Restart=always
 RestartSec=2
+RestartSteps=10
+RestartMaxDelaySec=120
 
 # Stop and restart send SIGTERM, which runs the app's graceful shutdown
 # (up to 10s). Give it a little longer before systemd force-kills it.
@@ -56,6 +61,9 @@ ProtectHome=true
 ProtectSystem=strict
 # The APM agent writes its logs here
 ReadWritePaths=/srv/score-tracker/apminsightdata
+# /var/lib/score-tracker, kept across restarts (passed to the app as
+# STATE_DIRECTORY): the cricket sync saves its next run time here
+StateDirectory=score-tracker
 
 [Install]
 WantedBy=multi-user.target
