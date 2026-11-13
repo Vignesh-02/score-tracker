@@ -4,10 +4,14 @@ import { RefreshCw } from 'lucide-react'
 import { Header } from './components/Header.jsx'
 import { Filters } from './components/Filters.jsx'
 import { MatchGrid, MatchGridSkeleton } from './components/MatchGrid.jsx'
+import { Tabs } from './components/Tabs.jsx'
+import { tabId, tabPanelId } from './lib/tabs.js'
 import { fetchMatches, matchesQueryKey } from './lib/api.js'
-import { ALL, filterMatches, filterOptions } from './lib/matches.js'
+import { ALL, STATUS, TAB, TABS, filterMatches, filterOptions, groupMatches, isOverdue, matchesForTab } from './lib/matches.js'
+import { formatCountdown, formatKickoff } from './lib/format.js'
+import { useNow } from './lib/useNow.js'
 import { useFilters } from './lib/useFilters.js'
-import { useSocketMessages } from './live/hooks.js'
+import { useMatchSubscriptions, useSocketMessages } from './live/hooks.js'
 import { useLiveMatchUpdates } from './live/useLiveMatchUpdates.js'
 
 const timeFormat = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
@@ -45,12 +49,59 @@ function SocketLog() {
   )
 }
 
+function EmptyPanel({ title, children }) {
+  return (
+    <div className="rounded-lg border border-dashed border-line p-10 text-center">
+      <p className="text-xl font-bold tracking-[0.15em] uppercase">{title}</p>
+      {children}
+    </div>
+  )
+}
+
+const actionClass =
+  'mt-4 rounded-md border border-amber px-4 py-2 font-bold tracking-[0.15em] text-amber uppercase transition hover:bg-amber/10'
+
+// Shown in the Live tab when nothing is on: the next kick-off, so the page
+// still says something useful during an international break or overnight
+function NothingLive({ next, fixtures, onShowFixtures }) {
+  const now = useNow()
+
+  return (
+    <EmptyPanel title="Nothing live right now">
+      {next ? (
+        <>
+          <p className="mt-4 text-sm font-bold tracking-[0.2em] text-muted uppercase">Next up</p>
+          <p className="mt-1 text-2xl font-semibold tracking-wide uppercase">
+            {next.homeTeam} <span className="text-muted">vs</span> {next.awayTeam}
+          </p>
+          <p className="mt-1 text-muted">{next.competition ?? next.sport}</p>
+          <p className="mt-2 font-mono text-sm text-amber">
+            {formatKickoff(next.startTime, now)} · {formatCountdown(next.startTime, now)}
+          </p>
+          <button type="button" onClick={onShowFixtures} className={actionClass}>
+            See all {fixtures} fixtures
+          </button>
+        </>
+      ) : (
+        <p className="mt-1 text-muted">Nothing is scheduled in the next two weeks either.</p>
+      )}
+    </EmptyPanel>
+  )
+}
+
+const TAB_ACCENT = { [TAB.LIVE]: 'bg-live', [TAB.FIXTURES]: 'bg-amber', [TAB.RESULTS]: 'bg-muted' }
+
 function Matches() {
   const { data: matches, isPending, error, refetch, isRefetching } = useQuery({
     queryKey: matchesQueryKey,
     queryFn: () => fetchMatches(),
   })
   const [filters, setFilters] = useFilters()
+  const now = useNow()
+
+  // score_update is only sent to subscribers, so every live match is subscribed
+  // to, whichever tab is open
+  useMatchSubscriptions(matches?.filter((m) => m.status === STATUS.LIVE).map((m) => m.id) ?? [])
 
   if (isPending) return <MatchGridSkeleton />
 
@@ -72,39 +123,54 @@ function Matches() {
     )
   }
 
-  const filtered = filterMatches(matches, filters)
+  const { tab } = filters
   const isFiltered = filters.sport !== ALL || filters.competition !== ALL
 
+  // Tab counts follow the sport and competition filters; the sport and
+  // competition counts follow the open tab
+  const groups = groupMatches(filterMatches(matches, filters), now)
+  const counts = Object.fromEntries(TABS.map((t) => [t, matchesForTab(groups, t).length]))
+  const shown = matchesForTab(groups, tab)
+  const inTab = matchesForTab(groupMatches(matches, now), tab)
+  const clearFilters = () => setFilters({ sport: ALL, competition: ALL })
+
+  let content
+  if (shown.length > 0) {
+    content = <MatchGrid matches={shown} byDay={tab !== TAB.LIVE} accent={TAB_ACCENT[tab]} />
+  } else if (tab === TAB.LIVE) {
+    const next = groups.upcoming.find((m) => !isOverdue(m, now) && m.startTime)
+    content = <NothingLive next={next} fixtures={counts[TAB.FIXTURES]} onShowFixtures={() => setFilters({ tab: TAB.FIXTURES })} />
+  } else {
+    content = (
+      <EmptyPanel title={tab === TAB.FIXTURES ? 'No fixtures in the next two weeks' : 'No recent results'}>
+        {isFiltered ? (
+          <>
+            <p className="mt-1 text-muted">Try another sport or competition.</p>
+            <button type="button" onClick={clearFilters} className={actionClass}>
+              Clear filters
+            </button>
+          </>
+        ) : (
+          <p className="mt-1 text-muted">New matches appear here automatically as soon as they are added.</p>
+        )}
+      </EmptyPanel>
+    )
+  }
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      <Tabs tab={tab} counts={counts} onChange={(t) => setFilters({ tab: t })} />
+
       <Filters
-        options={filterOptions(matches, filters.sport)}
+        options={filterOptions(matches, filters.sport, inTab)}
         filters={filters}
-        total={matches.length}
+        total={inTab.length}
         onChange={setFilters}
       />
 
-      {filtered.length > 0 ? (
-        <MatchGrid matches={filtered} />
-      ) : (
-        <div className="rounded-lg border border-dashed border-line p-10 text-center">
-          <p className="text-xl font-bold tracking-[0.15em] uppercase">{isFiltered ? 'No matches for these filters' : 'No matches yet'}</p>
-          <p className="mt-1 text-muted">
-            {isFiltered
-              ? 'Try another sport or competition.'
-              : 'New matches appear here automatically as soon as they are added.'}
-          </p>
-          {isFiltered && (
-            <button
-              type="button"
-              onClick={() => setFilters({ sport: ALL, competition: ALL })}
-              className="mt-4 rounded-md border border-amber px-4 py-2 font-bold tracking-[0.15em] text-amber uppercase transition hover:bg-amber/10"
-            >
-              Clear filters
-            </button>
-          )}
-        </div>
-      )}
+      <div role="tabpanel" id={tabPanelId(tab)} aria-labelledby={tabId(tab)}>
+        {content}
+      </div>
     </div>
   )
 }

@@ -31,14 +31,28 @@ export function useSocketMessages(handler) {
   useEffect(() => socket.onMessage((message) => handlerRef.current(message)), [socket])
 }
 
-// Subscribes to a match's score_update and commentary messages while the
-// calling component is mounted. Pass null to subscribe to nothing.
-export function useMatchSubscription(matchId) {
+// Subscribes to score_update and commentary messages for every match in
+// matchIds, adding and dropping subscriptions as the list changes. The app
+// subscribes to all live matches, not just the cards on screen: the server
+// doesn't resend the current score on subscribe, so a match left unsubscribed
+// while another tab is open would show an old score when you come back.
+export function useMatchSubscriptions(matchIds) {
   const socket = useLiveSocketContext()
+  const subscribed = useRef(new Set())
+  const key = [...new Set(matchIds)].sort((a, b) => a - b).join(',')
 
   useEffect(() => {
-    if (matchId == null) return
-    socket.subscribe(matchId)
-    return () => socket.unsubscribe(matchId)
-  }, [socket, matchId])
+    const next = new Set(key ? key.split(',').map(Number) : [])
+    for (const id of next) if (!subscribed.current.has(id)) socket.subscribe(id)
+    for (const id of subscribed.current) if (!next.has(id)) socket.unsubscribe(id)
+    subscribed.current = next
+  }, [socket, key])
+
+  useEffect(
+    () => () => {
+      for (const id of subscribed.current) socket.unsubscribe(id)
+      subscribed.current = new Set()
+    },
+    [socket],
+  )
 }

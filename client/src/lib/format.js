@@ -9,6 +9,8 @@ const dayAndTime = new Intl.DateTimeFormat(undefined, {
   minute: '2-digit',
 })
 
+const dayOnly = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
+
 const startOfDay = (time) => new Date(time).setHours(0, 0, 0, 0)
 
 // "15:30", "Tomorrow 15:30", "Yesterday 20:00" or "Sat 8 Nov, 15:30"
@@ -36,4 +38,13 @@ export function formatCountdown(iso, now) {
   if (hours < 24) return `in ${hours}h${minutes % 60 ? ` ${minutes % 60}m` : ''}`
 
   return `in ${Math.round(hours / 24)}d`
+}
+
+// "Today", "Tomorrow", "Yesterday" or "Sat 14 Nov"
+export function formatDay(iso, now) {
+  const days = Math.round((startOfDay(new Date(iso)) - startOfDay(now)) / DAY_MS)
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Tomorrow'
+  if (days === -1) return 'Yesterday'
+  return dayOnly.format(new Date(iso))
 }

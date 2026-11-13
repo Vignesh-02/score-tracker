@@ -1,5 +1,4 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { useMatchSubscription } from '../live/hooks.js'
 import { STATUS, isOverdue } from '../lib/matches.js'
 import { formatInnings, formatLabel, highlightedSide, inningsOf, isCricket } from '../lib/cricket.js'
 import { formatCountdown, formatKickoff } from '../lib/format.js'
@@ -148,9 +147,6 @@ export function MatchCard({ match }) {
   const isUpcoming = match.status === STATUS.SCHEDULED
   const overdue = isOverdue(match, now)
   const cricket = isCricket(match)
-
-  // score_update is only sent to subscribers, so every live card on screen subscribes
-  useMatchSubscription(isLive ? match.id : null)
 
   const { homeScore, awayScore, _scored: scored } = match
   const label = celebrationLabel(match, scored)
