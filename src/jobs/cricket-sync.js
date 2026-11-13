@@ -37,11 +37,12 @@ export function nextDelay({ hitsToday, hitsLimit, pagesPerSync, now = Date.now()
     return Math.max(MIN_INTERVAL_MS, Math.round(untilReset / syncsLeft));
 }
 
-// When the next sync is due, saved so a restart doesn't sync straight away.
-// Matters most in development: node --watch restarts on every save, and each
-// immediate sync would cost ~2 of the day's 100 hits. In the temp folder, so
-// it works under the systemd sandbox too (PrivateTmp gives it its own /tmp).
-const SCHEDULE_FILE = join(tmpdir(), 'score-tracker-cricket-sync.json');
+// When the next sync is due, saved so a restart doesn't sync straight away:
+// each immediate sync would cost ~2 of the day's 100 hits, and node --watch
+// restarts on every save. Under systemd it goes in STATE_DIRECTORY
+// (/var/lib/score-tracker, from StateDirectory= in the service file), which
+// survives restarts. Not /tmp there: PrivateTmp gives every start a fresh one.
+const SCHEDULE_FILE = join(process.env.STATE_DIRECTORY || tmpdir(), 'score-tracker-cricket-sync.json');
 
 function loadNextSyncAt() {
     try {
@@ -99,6 +100,10 @@ export function startCricketSync(callbacks = {}) {
             });
             delay = nextDelay({ hitsToday, hitsLimit, pagesPerSync: pages });
         } catch (e) {
+            // The day's hits are gone (perhaps used by another copy of the app
+            // with the same key): retrying hourly would fail all day
+            if (/exceeded/i.test(e.message)) delay = nextUtcMidnight(Date.now()) - Date.now() + AFTER_RESET_MS;
+
             const reason = e.cause ? ` (${e.cause.code ?? e.cause.message})` : '';
             console.error(`Cricket sync failed: ${e.message}${reason}`);
             syncState.lastErrorAt = new Date().toISOString();
