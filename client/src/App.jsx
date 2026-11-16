@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { RefreshCw } from 'lucide-react'
 import { Header } from './components/Header.jsx'
@@ -11,43 +10,8 @@ import { ALL, STATUS, TAB, TABS, filterMatches, filterOptions, groupMatches, isO
 import { formatCountdown, formatKickoff } from './lib/format.js'
 import { useNow } from './lib/useNow.js'
 import { useFilters } from './lib/useFilters.js'
-import { useMatchSubscriptions, useSocketMessages } from './live/hooks.js'
+import { useMatchSubscriptions } from './live/hooks.js'
 import { useLiveMatchUpdates } from './live/useLiveMatchUpdates.js'
-
-const timeFormat = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-
-// Temporary: shows raw broadcasts so the connection can be checked end to end.
-// The commentary panel replaces this in step 4.
-function SocketLog() {
-  const [events, setEvents] = useState([])
-
-  useSocketMessages((message) => {
-    setEvents((list) => [{ at: new Date(), message }, ...list].slice(0, 20))
-  })
-
-  return (
-    <aside className="overflow-hidden rounded-lg border border-line bg-panel">
-      <div className="h-1 bg-cyan" aria-hidden />
-      <div className="border-b border-line px-4 py-3">
-        <h2 className="text-base font-bold tracking-[0.2em] text-cyan uppercase">Socket events</h2>
-      </div>
-      <ul className="max-h-[28rem] space-y-2 overflow-y-auto p-4">
-        {events.length === 0 && <li className="text-muted">Waiting for messages…</li>}
-        {events.map(({ at, message }, i) => (
-          <li key={i} className="rounded-md border border-line bg-board p-2 text-sm">
-            <span className="font-mono text-xs text-muted">{timeFormat.format(at)}</span>{' '}
-            <span className="font-bold tracking-wide text-amber uppercase">{message.type}</span>
-            {message.data?.homeTeam && (
-              <span className="text-muted">
-                {' '}· {message.data.homeTeam} {message.data.homeScore}–{message.data.awayScore} {message.data.awayTeam}
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
-    </aside>
-  )
-}
 
 function EmptyPanel({ title, children }) {
   return (
@@ -191,21 +155,15 @@ export default function App() {
     <div className="mx-auto max-w-7xl space-y-8 px-4 py-6 sm:px-6 sm:py-8">
       <Header />
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_20rem] lg:items-start">
-        <section aria-labelledby="matches-heading" className="min-w-0">
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <h2 id="matches-heading" className="text-2xl font-bold tracking-[0.12em] uppercase">
-              Matches
-            </h2>
-            <MatchCount />
-          </div>
-          <Matches />
-        </section>
-
-        <div className="lg:sticky lg:top-6">
-          <SocketLog />
+      <section aria-labelledby="matches-heading">
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <h2 id="matches-heading" className="text-2xl font-bold tracking-[0.12em] uppercase">
+            Matches
+          </h2>
+          <MatchCount />
         </div>
-      </div>
+        <Matches />
+      </section>
     </div>
   )
 }

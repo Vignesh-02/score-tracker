@@ -6,7 +6,7 @@ import { useNow } from '../lib/useNow.js'
 
 function Cards({ matches }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <AnimatePresence initial={false}>
         {matches.map((match) => (
           <MatchCard key={match.id} match={match} />
@@ -61,7 +61,7 @@ export function MatchGrid({ matches, byDay = false, accent = 'bg-amber' }) {
 
 export function MatchGridSkeleton() {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {[0, 1, 2, 3].map((i) => (
         <MatchCardSkeleton key={i} />
       ))}
