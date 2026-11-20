@@ -3,6 +3,7 @@ import { STATUS, isOverdue } from '../lib/matches.js'
 import { formatInnings, formatLabel, highlightedSide, inningsOf, isCricket } from '../lib/cricket.js'
 import { formatCountdown, formatKickoff } from '../lib/format.js'
 import { useNow } from '../lib/useNow.js'
+import { matchPath, onAppLinkClick } from '../lib/route.js'
 
 const ledTone = (idle, lit) => (idle ? 'text-muted' : lit ? 'text-amber glow-amber' : 'text-amber-dim')
 
@@ -130,7 +131,11 @@ function footerText(match, now, overdue) {
   const kickoff = formatKickoff(match.startTime, now)
 
   if (match.status === STATUS.LIVE) return `Started ${kickoff}`
-  if (match.status === STATUS.FINISHED) return kickoff
+  if (match.status === STATUS.FINISHED) {
+    // Football's half-time score, when the provider sent one
+    const ht = match.details?.halfTime
+    return ht ? `HT ${ht.home}–${ht.away} · ${kickoff}` : kickoff
+  }
   if (overdue || !match.startTime) return `Kick-off ${kickoff}`
   return `${kickoff} · ${formatCountdown(match.startTime, now)}`
 }
@@ -141,7 +146,8 @@ function celebrationLabel(match, scored) {
   return match.sport === 'Football' ? 'Goal!' : 'Score!'
 }
 
-export function MatchCard({ match }) {
+// `link`: the whole card opens the match page. Off on the match page itself.
+export function MatchCard({ match, link = true }) {
   const now = useNow()
   const isLive = match.status === STATUS.LIVE
   const isUpcoming = match.status === STATUS.SCHEDULED
@@ -190,10 +196,24 @@ export function MatchCard({ match }) {
           ? 'border-amber shadow-[0_0_32px_-6px_rgb(255_176_0/0.6)]'
           : isLive
             ? 'glow-live border-live/50'
-            : 'border-line'
+            : link
+              ? 'border-line hover:border-muted'
+              : 'border-line'
       }`}
       aria-label={`${match.homeTeam} vs ${match.awayTeam}`}
     >
+      {link && (
+        // Covers the whole card, so anywhere on it opens the match page
+        <a
+          href={matchPath(match.id)}
+          onClick={onAppLinkClick}
+          className="absolute inset-0 z-10 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber"
+        >
+          <span className="sr-only">
+            {match.homeTeam} vs {match.awayTeam}: live updates and stats
+          </span>
+        </a>
+      )}
       {/* Top strip: competition (and cricket format) on the left, status on the right */}
       <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-2">

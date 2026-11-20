@@ -2,9 +2,11 @@ import { Router } from 'express';
 import { checkDatabase } from '../db/db.js';
 import { getFootballSyncStatus } from '../jobs/football-sync.js';
 import { getCricketSyncStatus } from '../jobs/cricket-sync.js';
+import { getFootballStatsSyncStatus } from '../jobs/football-stats-sync.js';
 
 // This long without a success means scores on screen may be out of date.
-// Football syncs every 60s; cricket every 20 min or more (it has a daily budget).
+// Football syncs every 60s; cricket every 3-15 min, or every 20-40 min when its
+// daily budget is low (always on the free plan).
 const FOOTBALL_STALE_AFTER_MS = 5 * 60_000;
 const CRICKET_STALE_AFTER_MS = 3 * 60 * 60_000;
 
@@ -59,6 +61,8 @@ export function healthRouter({ isShuttingDown }) {
             db,
             footballSync: { ...football, stale: footballStale },
             cricketSync: { ...cricket, stale: cricketStale },
+            // Informational only: old tables don't make the server degraded
+            footballStatsSync: getFootballStatsSyncStatus(),
         });
     });
 

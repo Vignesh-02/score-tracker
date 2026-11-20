@@ -1,9 +1,10 @@
 import { TAB, TABS } from '../lib/matches.js'
 import { tabId, tabPanelId } from '../lib/tabs.js'
 
-const LABELS = { [TAB.LIVE]: 'Live', [TAB.FIXTURES]: 'Fixtures', [TAB.RESULTS]: 'Results' }
+const LABELS = { [TAB.LIVE]: 'Live', [TAB.FIXTURES]: 'Fixtures', [TAB.RESULTS]: 'Results', [TAB.TABLES]: 'Tables' }
 
-// Live, Fixtures, Results, each with its match count. Arrow keys move between tabs.
+// Live, Fixtures, Results (each with its match count) and Tables. Arrow keys
+// move between tabs.
 export function Tabs({ tab, counts, onChange }) {
   function onKeyDown(e) {
     const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
@@ -29,7 +30,7 @@ export function Tabs({ tab, counts, onChange }) {
             aria-controls={tabPanelId(value)}
             tabIndex={active ? 0 : -1}
             onClick={() => onChange(value)}
-            className={`-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-base font-bold tracking-[0.18em] uppercase transition sm:px-5 ${
+            className={`-mb-px flex items-center gap-1.5 border-b-2 px-2.5 py-2.5 text-sm font-bold tracking-[0.12em] uppercase transition sm:gap-2 sm:px-5 sm:text-base sm:tracking-[0.18em] ${
               active ? 'border-amber text-amber' : 'border-transparent text-muted hover:text-ink'
             }`}
           >
@@ -40,7 +41,9 @@ export function Tabs({ tab, counts, onChange }) {
               </span>
             )}
             {LABELS[value]}
-            <span className="font-mono text-xs font-medium tracking-normal opacity-70">{counts[value]}</span>
+            {counts[value] != null && (
+              <span className="font-mono text-xs font-medium tracking-normal opacity-70">{counts[value]}</span>
+            )}
           </button>
         )
       })}

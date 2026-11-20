@@ -39,9 +39,11 @@ export function groupMatches(list, now) {
   }
 }
 
-// The three tabs, and which group of groupMatches() each one shows
-export const TAB = { LIVE: 'live', FIXTURES: 'fixtures', RESULTS: 'results' }
-export const TABS = [TAB.LIVE, TAB.FIXTURES, TAB.RESULTS]
+// The tabs. The first three show a group of groupMatches(); Tables shows
+// league tables instead of matches.
+export const TAB = { LIVE: 'live', FIXTURES: 'fixtures', RESULTS: 'results', TABLES: 'tables' }
+export const TABS = [TAB.LIVE, TAB.FIXTURES, TAB.RESULTS, TAB.TABLES]
+export const MATCH_TABS = [TAB.LIVE, TAB.FIXTURES, TAB.RESULTS]
 
 export function matchesForTab(groups, tab) {
   if (tab === TAB.FIXTURES) return groups.upcoming

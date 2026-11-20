@@ -13,6 +13,7 @@ export default defineConfig({
     // origin in development, just like in production where Express serves this app
     proxy: {
       '/matches': API_SERVER,
+      '/competitions': API_SERVER,
       '/ws': { target: API_SERVER, ws: true },
     },
   },

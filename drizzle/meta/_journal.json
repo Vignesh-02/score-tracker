@@ -22,6 +22,20 @@
       "when": 1794380226384,
       "tag": "0002_cricket_details",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795160842596,
+      "tag": "0003_competition_stats",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795179514733,
+      "tag": "0004_cricket_scorecards",
+      "breakpoints": true
     }
   ]
 }

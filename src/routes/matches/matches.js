@@ -109,6 +109,28 @@ matchRouter.get('/', async (req,res) => {
     }
 })
 
+// GET /matches/:id: one match, for its page
+matchRouter.get('/:id', async (req, res) => {
+    const parsed = matchIdParamSchema.safeParse(req.params);
+
+    if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid match id', details: parsed.error.issues });
+    }
+
+    try {
+        const [match] = await db.select().from(matches).where(eq(matches.id, parsed.data.id));
+        if (!match) return res.status(404).json({ error: 'Match not found' });
+
+        // Same as the list: make a manual match's status exact right now
+        await syncStatuses([match], res.app.locals.broadcastStatusChange);
+
+        res.json({ data: match });
+    } catch (e) {
+        console.error('Failed to get match:', e);
+        res.status(500).json({ error: 'Failed to get match' });
+    }
+});
+
 matchRouter.post('/', requireAdmin, async (req,res) => {
     const parsed = createMatchSchema.safeParse(req.body);
 

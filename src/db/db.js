@@ -2,9 +2,9 @@ import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 
-// The app uses Neon's pooled endpoint (the "-pooler" host): it's built for many
-// short-lived connections from app servers and copes better with compute
-// restarts. Migrations (drizzle.config.js) keep the direct DATABASE_URL.
+// DATABASE_URL_POOLED is for hosts with a separate pooled endpoint (such as a
+// connection pooler in front of Postgres). With a local Postgres both are the
+// same URL. Migrations (drizzle.config.js) always use DATABASE_URL.
 const connectionString = process.env.DATABASE_URL_POOLED || process.env.DATABASE_URL;
 
 if (!connectionString) {
@@ -23,7 +23,7 @@ export const pool = new Pool({
   keepAlive: true,
 });
 
-// Neon closes idle connections (e.g. when the compute suspends or restarts).
+// Postgres can close idle connections (e.g. when it restarts or the network drops).
 // pg reports that as an 'error' on the pool, and an unhandled 'error' event
 // crashes the whole server. The pool already drops the broken connection and
 // opens a new one on the next query, so logging it is all that's needed.

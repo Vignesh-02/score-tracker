@@ -103,14 +103,17 @@ export function toMatchRow(match) {
             format,
             statusText: match.status || null,
             innings,
+            // CricketData.org only has scorecards for "fantasy enabled" matches
+            hasScorecard: Boolean(match.fantasyEnabled),
         },
     };
 }
 
-// One page of /currentMatches. The key goes in the query string because that's
-// the only way this API accepts it, so the URL must never be logged.
-async function requestPage(offset, apiKey) {
-    const res = await fetch(`${BASE_URL}/currentMatches?offset=${offset}&apikey=${encodeURIComponent(apiKey)}`);
+// One call to the API. The key goes in the query string because that's the
+// only way this API accepts it, so the URL must never be logged.
+async function call(path, params, apiKey) {
+    const query = new URLSearchParams({ ...params, apikey: apiKey });
+    const res = await fetch(`${BASE_URL}/${path}?${query}`);
 
     if (!res.ok) throw new Error(`CricketData.org responded ${res.status}`);
 
@@ -120,7 +123,13 @@ async function requestPage(offset, apiKey) {
         throw new Error(`CricketData.org: ${String(body.reason ?? body.status).slice(0, 200)}`);
     }
 
-    return { data: body.data ?? [], info: body.info ?? {} };
+    return { data: body.data, info: body.info ?? {} };
+}
+
+// One page of /currentMatches
+async function requestPage(offset, apiKey) {
+    const { data, info } = await call('currentMatches', { offset }, apiKey);
+    return { data: data ?? [], info };
 }
 
 // Fetches every current match (recent, live and about to start), across as
@@ -145,6 +154,66 @@ export async function fetchCurrentMatches({ apiKey = process.env.CRICKETDATA_API
     return {
         rows,
         pages,
+        hitsToday: info.hitsToday ?? null,
+        hitsLimit: info.hitsLimit ?? null,
+    };
+}
+
+// ---------- scorecards ----------
+
+// A scorecard costs 10 hits (the response's info.hitsUsed), against 1 for a
+// page of currentMatches, so the scorecard route rations them.
+export const SCORECARD_HITS = 10;
+
+const playerName = (p) => p?.name?.trim() || 'Unknown';
+
+// Converts a /match_scorecard response into what the match page shows:
+// { venue, toss: { team, choice }, final, innings: [{ side, number, batting, bowling }] }
+// Batting rows: { name, dismissal ("c X b Y", "batting", "not out"), out, runs, balls, fours, sixes, strikeRate }
+// Bowling rows: { name, overs, maidens, runs, wickets, noBalls, wides, economy }
+export function toScorecard(data) {
+    const teams = data.teams ?? [];
+    const cards = data.scorecard ?? [];
+    const sides = assignInnings(cards.map((c) => ({ inning: c.inning })), teams);
+
+    // The toss winner comes lower-cased ("uganda women")
+    const tossTeam = teams.find((t) => normalise(t) === normalise(data.tossWinner)) ?? data.tossWinner;
+
+    return {
+        venue: data.venue || null,
+        toss: data.tossWinner ? { team: tossTeam, choice: data.tossChoice || null } : null,
+        final: Boolean(data.matchEnded),
+        innings: cards.map((card, i) => ({
+            side: sides[i].side,
+            number: sides[i].number,
+            batting: (card.batting ?? []).map((b) => ({
+                name: playerName(b.batsman),
+                dismissal: b['dismissal-text'] || null,
+                out: Boolean(b.dismissal),
+                runs: b.r ?? 0,
+                balls: b.b ?? 0,
+                fours: b['4s'] ?? 0,
+                sixes: b['6s'] ?? 0,
+                strikeRate: b.sr ?? null,
+            })),
+            bowling: (card.bowling ?? []).map((b) => ({
+                name: playerName(b.bowler),
+                overs: b.o ?? 0,
+                maidens: b.m ?? 0,
+                runs: b.r ?? 0,
+                wickets: b.w ?? 0,
+                noBalls: b.nb ?? 0,
+                wides: b.wd ?? 0,
+                economy: b.eco ?? null,
+            })),
+        })),
+    };
+}
+
+export async function fetchScorecard(externalId, { apiKey = process.env.CRICKETDATA_API_KEY } = {}) {
+    const { data, info } = await call('match_scorecard', { id: externalId }, apiKey);
+    return {
+        scorecard: toScorecard(data ?? {}),
         hitsToday: info.hitsToday ?? null,
         hitsLimit: info.hitsLimit ?? null,
     };
