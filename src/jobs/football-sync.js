@@ -32,13 +32,27 @@ function stableJson(value) {
     return JSON.stringify(value ?? null);
 }
 
+// A match that finished more than this long ago doesn't really restart. Providers
+// sometimes report one as live again for a sync or two (football-data.org did
+// for São Paulo v Fluminense, 12 hours after full time, 7 times), which would
+// add "Kick-off" and "Full time" to its feed each time. Closer to the end it
+// can be real: a match marked finished before extra time.
+const REOPEN_AFTER_END_MS = 60 * 60_000;
+
+function withSettledStatus(current, row, now) {
+    const longOver = current.status === MATCH_STATUS.FINISHED && current.endTime
+        && now - current.endTime.getTime() > REOPEN_AFTER_END_MS;
+    return longOver && row.status !== MATCH_STATUS.FINISHED ? { ...row, status: MATCH_STATUS.FINISHED } : row;
+}
+
 // Rows without `details` (football) leave the column alone, so it never counts as changed
 const sameDetails = (current, row) => !('details' in row) || stableJson(current) === stableJson(row.details);
 
 // Saves provider rows (from an adapter's fetchMatches) into `matches`:
 // inserts new ones and updates changed ones, then calls the matching callback
-// so the change can be broadcast. Unchanged matches cost no writes.
-export async function saveProviderMatches(rows, { onCreated, onScoreChange, onStatusChange } = {}) {
+// so the change can be broadcast. onChange(updated, previous) runs once for
+// every updated match, before the others. Unchanged matches cost no writes.
+export async function saveProviderMatches(rows, { onCreated, onChange, onScoreChange, onStatusChange } = {}) {
     const result = { created: 0, updated: 0 };
     if (!rows.length) return result;
 
@@ -49,19 +63,21 @@ export async function saveProviderMatches(rows, { onCreated, onScoreChange, onSt
         .where(and(eq(matches.source, source), inArray(matches.externalId, rows.map((r) => r.externalId))));
     const byExternalId = new Map(existing.map((m) => [m.externalId, m]));
 
-    for (const row of rows) {
-        const current = byExternalId.get(row.externalId);
+    for (const incoming of rows) {
+        const current = byExternalId.get(incoming.externalId);
 
         if (!current) {
             // The unique (source, external_id) index makes a duplicate insert a
             // no-op, e.g. if two syncs overlap
-            const [created] = await db.insert(matches).values(row).onConflictDoNothing().returning();
+            const [created] = await db.insert(matches).values(incoming).onConflictDoNothing().returning();
             if (created) {
                 result.created++;
                 onCreated?.(created);
             }
             continue;
         }
+
+        const row = withSettledStatus(current, incoming, Date.now());
 
         // Cricket's innings and status text ("India need 32 runs") live in
         // `details`; a change there is sent to viewers like a score change
@@ -76,6 +92,7 @@ export async function saveProviderMatches(rows, { onCreated, onScoreChange, onSt
         const [updated] = await db.update(matches).set(row).where(eq(matches.id, current.id)).returning();
         result.updated++;
 
+        await onChange?.(updated, current);
         if (scoreChanged) onScoreChange?.(updated);
         if (statusChanged) onStatusChange?.(updated);
     }

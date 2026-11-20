@@ -11,9 +11,14 @@ import { spawn } from 'node:child_process';
 import WebSocket from 'ws';
 import { eq, inArray } from 'drizzle-orm';
 import { db, pool } from '../src/db/db.js';
-import { matches, commentary } from '../src/db/schema.js';
+import { matches, commentary, competitionStats, cricketScorecards } from '../src/db/schema.js';
 import { toMatchRow } from '../src/providers/football-data.js';
 import { catchUpStaleMatches, saveProviderMatches } from '../src/jobs/football-sync.js';
+import { saveCompetitionStats } from '../src/jobs/football-stats-sync.js';
+import { recordMatchEvents } from '../src/live/match-events.js';
+import { clearHeadToHeadCache, createHeadToHeadHandler } from '../src/routes/head2head.js';
+import { clearScorecardState, createScorecardHandler } from '../src/routes/scorecard.js';
+import express from 'express';
 
 const TEST_PORT = 8765;
 const BASE = `http://127.0.0.1:${TEST_PORT}`;
@@ -96,8 +101,9 @@ async function waitForServer(base = BASE) {
 
 before(async () => {
     server = spawn('node', ['src/index.js'], {
-        // High limits, so the rate limiter doesn't block the rest of the suite
-        env: { ...process.env, PORT: String(TEST_PORT), HOST: '127.0.0.1', RATE_LIMIT_MAX: '100000', WS_RATE_LIMIT_MAX: '100000', FOOTBALL_DATA_API_KEY: '', CRICKETDATA_API_KEY: '' },
+        // High limits and no Arcjet, so rate limiting doesn't block the rest of
+        // the suite (Arcjet allows only 5 WebSocket connections per 2s)
+        env: { ...process.env, PORT: String(TEST_PORT), HOST: '127.0.0.1', ARCJET_KEY: '', RATE_LIMIT_MAX: '100000', WS_RATE_LIMIT_MAX: '100000', FOOTBALL_DATA_API_KEY: '', CRICKETDATA_API_KEY: '' },
         stdio: 'ignore',
     });
     await waitForServer();
@@ -232,6 +238,51 @@ describe('Provider sync', () => {
         });
         assert.deepEqual(changed, { created: 0, updated: 1 });
         assert.equal(scores[0].details.statusText, 'Day 2: 1st Session');
+    });
+
+    it('passes the match before the change to onChange, which records feed lines', async () => {
+        const id = `${externalId}-events`;
+        await saveProviderMatches([row({ externalId: id })], { onCreated: track });
+
+        const broadcasts = [];
+        const recorded = [];
+        await saveProviderMatches([row({ externalId: id, status: 'live', homeScore: 1 })], {
+            onChange: async (match, previous) => {
+                assert.equal(previous.status, 'scheduled');
+                assert.equal(previous.homeScore, 0);
+                recorded.push(...await recordMatchEvents(previous, match, (matchId, c) => broadcasts.push([matchId, c])));
+            },
+        });
+
+        assert.deepEqual(recorded.map((c) => c.message), ['Kick-off', 'Goal! TEST Home · TEST Home 1–0 TEST Away']);
+        assert.equal(broadcasts.length, 2);
+        const saved = await db.select().from(commentary).where(eq(commentary.matchId, recorded[0].matchId));
+        assert.equal(saved.length, 2);
+    });
+
+    it('keeps a long-finished match finished when the provider briefly says live', async () => {
+        const now = Date.now();
+        const id = `${externalId}-reopened`;
+        const finished = { externalId: id, status: 'finished', homeScore: 0, awayScore: 1, startTime: new Date(now - 14 * 3600e3), endTime: new Date(now - 12 * 3600e3) };
+        await saveProviderMatches([row(finished)], { onCreated: track });
+
+        const changes = [];
+        const result = await saveProviderMatches([row({ ...finished, status: 'live' })], { onChange: (m) => changes.push(m) });
+        assert.deepEqual(result, { created: 0, updated: 0 });
+        assert.equal(changes.length, 0);
+        const [saved] = await db.select().from(matches).where(eq(matches.externalId, id));
+        assert.equal(saved.status, 'finished');
+    });
+
+    it('lets a match that only just finished go live again (extra time)', async () => {
+        const now = Date.now();
+        const id = `${externalId}-extra-time`;
+        const finished = { externalId: id, status: 'finished', startTime: new Date(now - 2 * 3600e3), endTime: new Date(now - 60e3) };
+        await saveProviderMatches([row(finished)], { onCreated: track });
+
+        await saveProviderMatches([row({ ...finished, status: 'live' })]);
+        const [saved] = await db.select().from(matches).where(eq(matches.externalId, id));
+        assert.equal(saved.status, 'live');
     });
 
     it('is not overridden by the time-based status sync', async () => {
@@ -738,6 +789,224 @@ describe('WebSocket /ws', () => {
         assert.ok(msg, 'expected a status_change broadcast');
         assert.equal(msg.data.status, 'finished');
         ws.close();
+    });
+});
+
+describe('GET /matches/:id', () => {
+    it('returns one match', async () => {
+        const id = (await createMatch({ homeTeam: 'TEST Solo' })).json.data.id;
+        const res = await request('GET', `/matches/${id}`, undefined, { admin: false });
+        assert.equal(res.status, 200);
+        assert.equal(res.json.data.id, id);
+        assert.equal(res.json.data.homeTeam, 'TEST Solo');
+    });
+
+    it('returns 404 for an unknown match and 400 for a bad id', async () => {
+        assert.equal((await request('GET', '/matches/999999999', undefined, { admin: false })).status, 404);
+        assert.equal((await request('GET', '/matches/abc', undefined, { admin: false })).status, 400);
+    });
+});
+
+describe('GET /matches/:id/head2head', () => {
+    it('is an empty list for a match that isn\'t from football-data.org', async () => {
+        const id = (await createMatch()).json.data.id;
+        const res = await request('GET', `/matches/${id}/head2head`, undefined, { admin: false });
+        assert.equal(res.status, 200);
+        assert.deepEqual(res.json.data, []);
+        assert.equal((await request('GET', '/matches/999999999/head2head', undefined, { admin: false })).status, 404);
+    });
+
+    // The handler on its own, with a fake fetcher instead of football-data.org
+    it('caches each match and limits fetches to 3 a minute', async () => {
+        const savedKey = process.env.FOOTBALL_DATA_API_KEY;
+        process.env.FOOTBALL_DATA_API_KEY = 'test-key';
+        clearHeadToHeadCache();
+
+        const fetched = [];
+        const app = express();
+        app.get('/matches/:id/head2head', createHeadToHeadHandler({
+            fetcher: async (externalId) => { fetched.push(externalId); return [{ date: '2026-01-01T00:00:00Z', homeTeam: 'A', awayTeam: 'B', homeScore: 1, awayScore: 0 }]; },
+        }));
+        const local = app.listen(0, '127.0.0.1');
+        await new Promise((r) => local.once('listening', r));
+        const get = async (id) => {
+            const res = await fetch(`http://127.0.0.1:${local.address().port}/matches/${id}/head2head`);
+            return { status: res.status, body: await res.json() };
+        };
+
+        try {
+            const ids = [];
+            for (let i = 0; i < 4; i++) {
+                const [m] = await db.insert(matches).values({
+                    source: 'football-data', externalId: `TEST-h2h-${Date.now()}-${i}`, sport: 'Football',
+                    homeTeam: 'TEST A', awayTeam: 'TEST B', status: 'scheduled',
+                }).returning();
+                createdMatchIds.push(m.id);
+                ids.push(m.id);
+            }
+
+            assert.equal((await get(ids[0])).body.data.length, 1);
+            assert.equal((await get(ids[0])).status, 200); // cached
+            assert.equal((await get(ids[1])).status, 200);
+            assert.equal((await get(ids[2])).status, 200);
+            assert.equal(fetched.length, 3);
+
+            const busy = await get(ids[3]);
+            assert.equal(busy.status, 503);
+            assert.equal(fetched.length, 3);
+        } finally {
+            local.close();
+            clearHeadToHeadCache();
+            if (savedKey === undefined) delete process.env.FOOTBALL_DATA_API_KEY;
+            else process.env.FOOTBALL_DATA_API_KEY = savedKey;
+        }
+    });
+});
+
+describe('GET /matches/:id/scorecard', () => {
+    it('has no scorecard for a match that isn\'t from CricketData.org', async () => {
+        const id = (await createMatch()).json.data.id;
+        const res = await request('GET', `/matches/${id}/scorecard`, undefined, { admin: false });
+        assert.equal(res.status, 200);
+        assert.deepEqual(res.json, { data: null, reason: 'none' });
+        assert.equal((await request('GET', '/matches/999999999/scorecard', undefined, { admin: false })).status, 404);
+    });
+
+    // The handler on its own, with a fake fetcher and hit count instead of CricketData.org
+    it('saves scorecards, refetches live ones only when stale and within the day\'s hits', async () => {
+        const savedKey = process.env.CRICKETDATA_API_KEY;
+        process.env.CRICKETDATA_API_KEY = 'test-key';
+        clearScorecardState();
+
+        const batter = (name, runs, out) => ({ name, dismissal: out ? 'b Henry' : 'batting', out, runs, balls: runs, fours: 0, sixes: 0, strikeRate: 100 });
+        let card = { venue: 'Eden Park', toss: null, final: false, innings: [{ side: 'home', number: 1, batting: [batter('Rohit', 30, false)], bowling: [] }] };
+        let hits = { left: 80, limit: 100 };
+        const fetched = [];
+
+        const app = express();
+        app.locals.broadcastCommentary = () => {};
+        app.get('/matches/:id/scorecard', createScorecardHandler({
+            fetcher: async (externalId) => { fetched.push(externalId); return { scorecard: structuredClone(card), hitsToday: null, hitsLimit: null }; },
+            hitsLeft: () => hits,
+        }));
+        const local = app.listen(0, '127.0.0.1');
+        await new Promise((r) => local.once('listening', r));
+        const get = async (id) => (await fetch(`http://127.0.0.1:${local.address().port}/matches/${id}/scorecard`)).json();
+
+        const insert = async (overrides) => {
+            const [m] = await db.insert(matches).values({
+                source: 'cricketdata', externalId: `TEST-card-${Date.now()}-${Math.random()}`, sport: 'Cricket',
+                homeTeam: 'TEST India', awayTeam: 'TEST NZ', status: 'live', details: { innings: [], hasScorecard: true }, ...overrides,
+            }).returning();
+            createdMatchIds.push(m.id);
+            return m.id;
+        };
+        const age = (id) => db.update(cricketScorecards).set({ fetchedAt: new Date(Date.now() - 60 * 60_000) }).where(eq(cricketScorecards.matchId, id));
+
+        try {
+            const live = await insert();
+
+            const first = await get(live);
+            assert.equal(first.data.venue, 'Eden Park');
+            assert.equal(first.data.stale, false);
+            assert.equal(fetched.length, 1);
+
+            await get(live); // saved and still fresh
+            assert.equal(fetched.length, 1);
+
+            // Stale: fetched again, and what changed becomes a feed line
+            card.innings[0].batting = [batter('Rohit', 52, true)];
+            await age(live);
+            assert.equal((await get(live)).data.innings[0].batting[0].runs, 52);
+            assert.equal(fetched.length, 2);
+            const lines = await db.select().from(commentary).where(eq(commentary.matchId, live));
+            assert.deepEqual(lines.map((l) => l.message).sort(), ['Fifty for Rohit · 52 off 52', 'Out: Rohit b Henry · 52 (52)']);
+
+            // Too few hits left for the score sync: the saved one, marked stale
+            hits = { left: 35, limit: 100 };
+            await age(live);
+            const stale = await get(live);
+            assert.equal(stale.data.stale, true);
+            assert.equal(fetched.length, 2);
+
+            // ...and nothing at all for a match with no saved scorecard
+            assert.deepEqual(await get(await insert()), { data: null, reason: 'limit' });
+            hits = { left: 80, limit: 100 };
+
+            // A finished match is fetched once and kept
+            const done = await insert({ status: 'finished' });
+            await get(done);
+            await age(done);
+            assert.equal((await get(done)).data.final, true);
+            assert.equal(fetched.length, 3);
+
+            // No hits spent on matches without a scorecard, or not started yet
+            assert.deepEqual(await get(await insert({ details: { hasScorecard: false } })), { data: null, reason: 'unavailable' });
+            assert.deepEqual(await get(await insert({ status: 'scheduled' })), { data: null, reason: 'not_started' });
+            assert.equal(fetched.length, 3);
+        } finally {
+            local.close();
+            clearScorecardState();
+            if (savedKey === undefined) delete process.env.CRICKETDATA_API_KEY;
+            else process.env.CRICKETDATA_API_KEY = savedKey;
+        }
+    });
+});
+
+describe('GET /competitions', () => {
+    // Codes no real competition uses, so the tests never touch synced data
+    const CODE = 'TSTX';
+    const OLD_CODE = 'TSTY';
+    const day = 24 * 60 * 60 * 1000;
+    const date = (offsetDays) => new Date(Date.now() + offsetDays * day).toISOString().slice(0, 10);
+    const table = [{ position: 1, team: 'TEST FC', crest: null, played: 3, won: 3, draw: 0, lost: 0, goalsFor: 7, goalsAgainst: 1, goalDifference: 6, points: 9 }];
+    const scorers = [{ player: 'TEST Player', team: 'TEST FC', crest: null, played: 3, goals: 4, assists: null, penalties: null }];
+
+    before(async () => {
+        await saveCompetitionStats(
+            { code: CODE, name: 'TEST League', area: 'Testland', emblem: null, season: { startDate: date(-30), endDate: date(60), currentMatchday: 3 } },
+            { standings: [{ stage: 'REGULAR_SEASON', group: null, table }], scorers },
+        );
+        // A season that ended months ago isn't listed
+        await saveCompetitionStats(
+            { code: OLD_CODE, name: 'TEST Old Cup', area: 'Testland', emblem: null, season: { startDate: date(-200), endDate: date(-100), currentMatchday: 7 } },
+            { standings: [], scorers: [] },
+        );
+    });
+
+    after(async () => {
+        await db.delete(competitionStats).where(inArray(competitionStats.code, [CODE, OLD_CODE]));
+    });
+
+    it('lists competitions in season, without their tables', async () => {
+        const res = await request('GET', '/competitions', undefined, { admin: false });
+        assert.equal(res.status, 200);
+        const listed = res.json.data.find((c) => c.code === CODE);
+        assert.equal(listed.name, 'TEST League');
+        assert.equal(listed.standings, undefined);
+        assert.ok(!res.json.data.some((c) => c.code === OLD_CODE));
+    });
+
+    it('returns one competition\'s table and top scorers, any letter case', async () => {
+        const res = await request('GET', `/competitions/${CODE.toLowerCase()}`, undefined, { admin: false });
+        assert.equal(res.status, 200);
+        assert.deepEqual(res.json.data.standings[0].table, table);
+        assert.deepEqual(res.json.data.scorers, scorers);
+    });
+
+    it('updates a competition in place when it is saved again', async () => {
+        await saveCompetitionStats(
+            { code: CODE, name: 'TEST League', area: 'Testland', emblem: null, season: { startDate: date(-30), endDate: date(60), currentMatchday: 4 } },
+            { standings: [{ stage: 'REGULAR_SEASON', group: null, table: [{ ...table[0], played: 4, points: 12 }] }], scorers },
+        );
+        const res = await request('GET', `/competitions/${CODE}`, undefined, { admin: false });
+        assert.equal(res.json.data.standings[0].table[0].points, 12);
+        assert.equal(res.json.data.season.currentMatchday, 4);
+    });
+
+    it('returns 404 for an unknown competition and 400 for a malformed code', async () => {
+        assert.equal((await request('GET', '/competitions/ZZZZ9', undefined, { admin: false })).status, 404);
+        assert.equal((await request('GET', '/competitions/not-a-code!', undefined, { admin: false })).status, 400);
     });
 });
 

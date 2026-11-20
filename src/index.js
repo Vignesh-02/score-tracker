@@ -10,8 +10,13 @@ import { httpRateLimit, trustedProxies } from './rate-limit.js';
 import { startStatusSync } from './jobs/status-sync.js';
 import { startFootballSync } from './jobs/football-sync.js';
 import { startCricketSync } from './jobs/cricket-sync.js';
+import { startFootballStatsSync } from './jobs/football-stats-sync.js';
+import { competitionRouter } from './routes/competitions.js';
+import { headToHeadRouter } from './routes/head2head.js';
+import { scorecardRouter } from './routes/scorecard.js';
 import { healthRouter } from './routes/health.js';
 import { pool } from './db/db.js';
+import { recordMatchEvents } from './live/match-events.js';
 
 const app = express();
 const PORT = Number(process.env.PORT || 8000);
@@ -42,6 +47,9 @@ app.use(express.json());
 
 app.use('/matches', matchRouter);
 app.use('/matches/:id/commentary', commentaryRouter);
+app.use('/matches/:id/head2head', headToHeadRouter);
+app.use('/matches/:id/scorecard', scorecardRouter);
+app.use('/competitions', competitionRouter);
 
 app.get('/', (req, res) => {
     res.json({ message: 'Score Tracker API is running' });
@@ -78,6 +86,10 @@ app.locals.broadcastStatusChange = broadcastStatusChange;
 
 const providerCallbacks = {
     onCreated: broadcastMatchCreated,
+    // Kick-off, goals, wickets and full time become lines in the match page's
+    // live updates feed. A failure here mustn't stop the sync saving scores.
+    onChange: (match, previous) => recordMatchEvents(previous, match, broadcastCommentary)
+        .catch((e) => console.error('Failed to record match events:', e.message)),
     onScoreChange: (match) => broadcastScoreUpdate(match.id, match),
     onStatusChange: broadcastStatusChange,
 };
@@ -88,6 +100,7 @@ const providerCallbacks = {
 let stopStatusSync = () => {};
 let stopFootballSync = () => {};
 let stopCricketSync = () => {};
+let stopFootballStatsSync = () => {};
 
 function startJobs() {
     // Every 30s, move matches to live/finished and tell connected clients
@@ -96,9 +109,14 @@ function startJobs() {
     // Every 60s, import European football from football-data.org and broadcast changes
     stopFootballSync = startFootballSync(providerCallbacks);
 
-    // Every 20 min or more (paced to the free plan's 100 requests a day), import
-    // cricket from CricketData.org
+    // Every 3 min while a match is live, up to 15 min otherwise, slower when the
+    // day's requests run low (every 20-40 min on the free plan), import cricket
+    // from CricketData.org
     stopCricketSync = startCricketSync(providerCallbacks);
+
+    // League tables and top scorers from football-data.org, each refreshed
+    // every 30 min, one request every 20s
+    stopFootballStatsSync = startFootballStatsSync();
 }
 
 
@@ -122,6 +140,7 @@ async function shutdown(reason, exitCode = 0) {
         stopStatusSync();
         stopFootballSync();
         stopCricketSync();
+        stopFootballStatsSync();
         await closeWebSockets();
         // Stops accepting connections and waits for in-flight requests
         await new Promise((resolve) => server.close(() => resolve()));

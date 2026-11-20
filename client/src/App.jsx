@@ -4,9 +4,12 @@ import { Header } from './components/Header.jsx'
 import { Filters } from './components/Filters.jsx'
 import { MatchGrid, MatchGridSkeleton } from './components/MatchGrid.jsx'
 import { Tabs } from './components/Tabs.jsx'
+import { Tables } from './components/Tables.jsx'
+import { MatchPage } from './components/MatchPage.jsx'
+import { useRoute } from './lib/route.js'
 import { tabId, tabPanelId } from './lib/tabs.js'
 import { fetchMatches, matchesQueryKey } from './lib/api.js'
-import { ALL, STATUS, TAB, TABS, filterMatches, filterOptions, groupMatches, isOverdue, matchesForTab } from './lib/matches.js'
+import { ALL, MATCH_TABS, STATUS, TAB, filterMatches, filterOptions, groupMatches, isOverdue, matchesForTab } from './lib/matches.js'
 import { formatCountdown, formatKickoff } from './lib/format.js'
 import { useNow } from './lib/useNow.js'
 import { useFilters } from './lib/useFilters.js'
@@ -55,6 +58,9 @@ function NothingLive({ next, fixtures, onShowFixtures }) {
 
 const TAB_ACCENT = { [TAB.LIVE]: 'bg-live', [TAB.FIXTURES]: 'bg-amber', [TAB.RESULTS]: 'bg-muted' }
 
+// League tables are football-only
+const TABLES_SPORT = 'Football'
+
 function Matches() {
   const { data: matches, isPending, error, refetch, isRefetching } = useQuery({
     queryKey: matchesQueryKey,
@@ -91,9 +97,25 @@ function Matches() {
   const isFiltered = filters.sport !== ALL || filters.competition !== ALL
 
   // Tab counts follow the sport and competition filters; the sport and
-  // competition counts follow the open tab
+  // competition counts follow the open tab. Tables has no count.
   const groups = groupMatches(filterMatches(matches, filters), now)
-  const counts = Object.fromEntries(TABS.map((t) => [t, matchesForTab(groups, t).length]))
+  const counts = Object.fromEntries(MATCH_TABS.map((t) => [t, matchesForTab(groups, t).length]))
+
+  if (tab === TAB.TABLES) {
+    return (
+      <div className="space-y-6">
+        <Tabs tab={tab} counts={counts} onChange={(t) => setFilters({ tab: t })} />
+        <div role="tabpanel" id={tabPanelId(tab)} aria-labelledby={tabId(tab)}>
+          <Tables
+            competitionName={filters.competition}
+            matches={matches}
+            onSelect={(competition) => setFilters({ sport: TABLES_SPORT, competition })}
+          />
+        </div>
+      </div>
+    )
+  }
+
   const shown = matchesForTab(groups, tab)
   const inTab = matchesForTab(groupMatches(matches, now), tab)
   const clearFilters = () => setFilters({ sport: ALL, competition: ALL })
@@ -150,20 +172,26 @@ function MatchCount() {
 
 export default function App() {
   useLiveMatchUpdates()
+  const { matchId } = useRoute()
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 px-4 py-6 sm:px-6 sm:py-8">
       <Header />
 
-      <section aria-labelledby="matches-heading">
-        <div className="mb-5 flex items-center justify-between gap-3">
-          <h2 id="matches-heading" className="text-2xl font-bold tracking-[0.12em] uppercase">
-            Matches
-          </h2>
-          <MatchCount />
-        </div>
-        <Matches />
-      </section>
+      {matchId ? (
+        // key: a fresh page (and subscription) for each match
+        <MatchPage key={matchId} id={matchId} />
+      ) : (
+        <section aria-labelledby="matches-heading">
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <h2 id="matches-heading" className="text-2xl font-bold tracking-[0.12em] uppercase">
+              Matches
+            </h2>
+            <MatchCount />
+          </div>
+          <Matches />
+        </section>
+      )}
     </div>
   )
 }

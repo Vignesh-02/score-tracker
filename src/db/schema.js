@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, timestamp, pgEnum, jsonb, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, integer, timestamp, pgEnum, jsonb, uniqueIndex, boolean } from 'drizzle-orm/pg-core';
 
 export const matchStatusEnum = pgEnum('match_status', ['scheduled', 'live', 'finished']);
 
@@ -29,6 +29,42 @@ export const matches = pgTable('matches', {
   // Manual matches have no externalId, and Postgres allows any number of nulls here.
   uniqueIndex('matches_source_external_id_idx').on(table.source, table.externalId),
 ]);
+
+// One row per competition: its latest league table and top scorers from
+// football-data.org, refreshed by the football stats sync (src/jobs/football-stats-sync.js).
+// Kept in the database so a restart doesn't have to fetch them all again.
+export const competitionStats = pgTable('competition_stats', {
+  // football-data.org's code, e.g. 'PL', 'CL'
+  code: text('code').primaryKey(),
+  name: text('name').notNull(),
+  // e.g. 'England', 'Europe'
+  area: text('area'),
+  emblem: text('emblem'),
+  // { startDate, endDate, currentMatchday }
+  season: jsonb('season'),
+  // [{ stage, group, table: [{ position, team, crest, played, won, draw, lost,
+  //   goalsFor, goalsAgainst, goalDifference, points }] }]; one entry per group
+  standings: jsonb('standings').notNull(),
+  // [{ player, team, crest, played, goals, assists, penalties }], most goals first
+  scorers: jsonb('scorers').notNull(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// The latest batting and bowling scorecard of a cricket match, from
+// CricketData.org. Each fetch costs 10 of the day's hits, so it's kept: a
+// finished match's scorecard is fetched once, a live one at most every few
+// minutes (see src/routes/scorecard.js).
+export const cricketScorecards = pgTable('cricket_scorecards', {
+  matchId: integer('match_id')
+    .primaryKey()
+    .references(() => matches.id, { onDelete: 'cascade' }),
+  // { venue, toss, innings: [{ side, number, batting: [...], bowling: [...] }] }
+  // (toScorecard in src/providers/cricketdata.js)
+  data: jsonb('data').notNull(),
+  // The match had ended, so this scorecard won't change again
+  final: boolean('final').notNull().default(false),
+  fetchedAt: timestamp('fetched_at').notNull().defaultNow(),
+});
 
 export const commentary = pgTable('commentary', {
   id: serial('id').primaryKey(),
