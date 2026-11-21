@@ -1,5 +1,6 @@
 import { db } from '../db/db.js';
 import { commentary } from '../db/schema.js';
+import { matchMinute } from './football-clock.js';
 
 // Turns a change to a synced match into readable lines for the match page's
 // live updates feed ("Goal! Arsenal · Arsenal 2–1 Chelsea"). The providers on
@@ -14,8 +15,14 @@ const teamFor = (m, side) => (side === 'home' ? m.homeTeam : m.awayTeam);
 const inningsLine = (i) => `${i.runs}/${i.wickets} (${i.overs} ov)`;
 const isCricket = (m) => Array.isArray(m.details?.innings) || m.sport?.toLowerCase() === 'cricket';
 
-function footballScoreEvents(previous, next) {
+function footballScoreEvents(previous, next, now) {
     const events = [];
+
+    // The estimated minute ("Goal! Arsenal 23'"), while the clock is running.
+    // Not at half-time or the final whistle: a goal reported then was scored
+    // some time before.
+    const clock = next.status === LIVE ? matchMinute(next.details, now) : null;
+    const when = clock && clock.period !== 'HT' && clock.period !== 'ET' ? clock : null;
 
     for (const side of ['home', 'away']) {
         const key = side === 'home' ? 'homeScore' : 'awayScore';
@@ -23,7 +30,11 @@ function footballScoreEvents(previous, next) {
         const team = teamFor(next, side);
 
         for (let i = 0; i < goals; i++) {
-            events.push({ eventType: 'goal', team, message: `Goal! ${team} · ${scoreLine(next)}` });
+            events.push({
+                eventType: 'goal', team,
+                minute: when?.minute ?? null, period: when?.period ?? null,
+                message: `Goal! ${team}${when ? ` ${when.label}` : ''} · ${scoreLine(next)}`,
+            });
         }
     }
 
@@ -56,7 +67,7 @@ function cricketScoreEvents(previous, next) {
 }
 
 // The feed lines for one change, oldest first. [] when nothing worth saying changed.
-export function describeChange(previous, next) {
+export function describeChange(previous, next, now = Date.now()) {
     const cricket = isCricket(next);
     const events = [];
 
@@ -64,7 +75,18 @@ export function describeChange(previous, next) {
         events.push({ eventType: 'start', team: null, message: cricket ? 'Match started' : 'Kick-off' });
     }
 
-    events.push(...(cricket ? cricketScoreEvents(previous, next) : footballScoreEvents(previous, next)));
+    events.push(...(cricket ? cricketScoreEvents(previous, next) : footballScoreEvents(previous, next, now)));
+
+    // Football's half-time and the start of the second half, from the provider's status
+    if (!cricket && previous.status === LIVE && next.status === LIVE) {
+        const was = previous.details?.phase;
+        const phase = next.details?.phase;
+        if (was === 'IN_PLAY' && phase === 'PAUSED') {
+            events.push({ eventType: 'half_time', team: null, period: 'HT', message: `Half-time: ${scoreLine(next)}` });
+        } else if (was === 'PAUSED' && phase === 'IN_PLAY') {
+            events.push({ eventType: 'second_half', team: null, period: '2H', message: 'Second half under way' });
+        }
+    }
 
     // The toss, innings breaks and chases ("India need 32 runs from 18 balls").
     // At the finish the result line below says it instead.

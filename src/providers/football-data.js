@@ -50,7 +50,12 @@ export function toMatchRow(match) {
         // fullTime holds the current score while a match is in play
         homeScore: match.score?.fullTime?.home ?? 0,
         awayScore: match.score?.fullTime?.away ?? 0,
+        providerUpdatedAt: match.lastUpdated ? new Date(match.lastUpdated) : null,
     };
+
+    // While it's live, their own status: IN_PLAY, PAUSED (half-time) or
+    // SUSPENDED. The sync turns it into an estimated clock (src/live/football-clock.js).
+    if (status === MATCH_STATUS.LIVE) row.details = { phase: match.status };
 
     // The half-time score, once the match is over. While it's in play we can't
     // tell the first half from the second, so it isn't shown yet.

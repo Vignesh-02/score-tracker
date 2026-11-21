@@ -3,6 +3,7 @@ import { STATUS, isOverdue } from '../lib/matches.js'
 import { formatInnings, formatLabel, highlightedSide, inningsOf, isCricket } from '../lib/cricket.js'
 import { formatCountdown, formatKickoff } from '../lib/format.js'
 import { useNow } from '../lib/useNow.js'
+import { matchMinute } from '../lib/football-clock.js'
 import { matchPath, onAppLinkClick } from '../lib/route.js'
 
 const ledTone = (idle, lit) => (idle ? 'text-muted' : lit ? 'text-amber glow-amber' : 'text-amber-dim')
@@ -97,17 +98,24 @@ function TeamRow({ name, lit, children }) {
   )
 }
 
-function StatusPill({ match, overdue }) {
+function StatusPill({ match, overdue, now }) {
   const base = 'text-sm font-bold tracking-[0.15em] uppercase'
 
   if (match.status === STATUS.LIVE) {
+    // Football's estimated minute ("67'", "HT"), when the server has a clock for it
+    const clock = match.sport === 'Football' ? matchMinute(match.details, now) : null
     return (
-      <span className={`flex items-center gap-2 text-live ${base}`}>
+      <span className={`flex shrink-0 items-center gap-2 text-live ${base}`}>
         <span className="relative flex size-2">
           <span className="absolute inline-flex size-full animate-ping rounded-full bg-live opacity-75" />
           <span className="relative inline-flex size-2 rounded-full bg-live shadow-[0_0_8px_var(--color-live)]" />
         </span>
         Live
+        {clock && (
+          <span className="font-mono tracking-normal text-ink tabular-nums" title="Estimated from kick-off and half-time">
+            {clock.label}
+          </span>
+        )}
       </span>
     )
   }
@@ -241,7 +249,7 @@ export function MatchCard({ match, link = true }) {
               </motion.span>
             )}
           </AnimatePresence>
-          <StatusPill match={match} overdue={overdue} />
+          <StatusPill match={match} overdue={overdue} now={now} />
         </div>
       </div>
 

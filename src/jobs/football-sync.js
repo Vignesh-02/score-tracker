@@ -3,6 +3,7 @@ import { db } from '../db/db.js';
 import { matches } from '../db/schema.js';
 import { SOURCE, fetchMatches, fetchMatchesByIds } from '../providers/football-data.js';
 import { MATCH_STATUS } from '../validation/matches.js';
+import { withClock } from '../live/football-clock.js';
 
 // football-data.org's free plan allows 10 requests a minute; this uses 1, plus
 // up to 2 every SLOW_INTERVAL_MS (the far-ahead fixtures and stale matches)
@@ -45,7 +46,14 @@ function withSettledStatus(current, row, now) {
     return longOver && row.status !== MATCH_STATUS.FINISHED ? { ...row, status: MATCH_STATUS.FINISHED } : row;
 }
 
-// Rows without `details` (football) leave the column alone, so it never counts as changed
+// football-data.org sometimes serves an old copy of a match from its cache:
+// Man City v Fulham went back to not started at 0-0 several times mid-match,
+// adding "Kick-off" and the goal to its feed again each time. A response
+// older than the one we last saved a change from is ignored.
+const isOlder = (current, row) => Boolean(current.providerUpdatedAt && row.providerUpdatedAt
+    && row.providerUpdatedAt.getTime() < current.providerUpdatedAt.getTime());
+
+// Rows without `details` leave the column alone, so it never counts as changed
 const sameDetails = (current, row) => !('details' in row) || stableJson(current) === stableJson(row.details);
 
 // Saves provider rows (from an adapter's fetchMatches) into `matches`:
@@ -63,8 +71,10 @@ export async function saveProviderMatches(rows, { onCreated, onChange, onScoreCh
         .where(and(eq(matches.source, source), inArray(matches.externalId, rows.map((r) => r.externalId))));
     const byExternalId = new Map(existing.map((m) => [m.externalId, m]));
 
-    for (const incoming of rows) {
-        const current = byExternalId.get(incoming.externalId);
+    for (const fetched of rows) {
+        const current = byExternalId.get(fetched.externalId);
+        // Live football gets its estimated clock, carried over from earlier syncs
+        const incoming = withClock(current, fetched, Date.now());
 
         if (!current) {
             // The unique (source, external_id) index makes a duplicate insert a
@@ -76,6 +86,8 @@ export async function saveProviderMatches(rows, { onCreated, onChange, onScoreCh
             }
             continue;
         }
+
+        if (isOlder(current, incoming)) continue;
 
         const row = withSettledStatus(current, incoming, Date.now());
 
