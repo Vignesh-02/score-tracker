@@ -154,9 +154,46 @@ export async function fetchCurrentMatches({ apiKey = process.env.CRICKETDATA_API
     return {
         rows,
         pages,
+        // false when MAX_PAGES stopped it early: then a match missing from
+        // `rows` may just be on a page that wasn't read
+        complete: offset >= (info.totalRows ?? 0),
         hitsToday: info.hitsToday ?? null,
         hitsLimit: info.hitsLimit ?? null,
     };
+}
+
+// ---------- fixtures and single matches ----------
+
+// /currentMatches only holds matches from about a day before to a day after
+// now. /matches lists every match CricketData.org has (17,000+), ordered by
+// series rather than date, with the latest series first, so its first few
+// pages hold most fixtures for the next week or two.
+export const FIXTURE_PAGES = 3;
+
+export async function fetchFixtures({ pages = FIXTURE_PAGES, apiKey = process.env.CRICKETDATA_API_KEY } = {}) {
+    const rows = [];
+    let offset = 0;
+    let info = {};
+    let read = 0;
+
+    while (read < pages) {
+        const page = await call('matches', { offset }, apiKey);
+        const data = page.data ?? [];
+        read++;
+        info = page.info;
+        rows.push(...data.map(toMatchRow).filter(Boolean));
+
+        offset += data.length;
+        if (data.length === 0 || offset >= (info.totalRows ?? 0)) break;
+    }
+
+    return { rows, pages: read, hitsToday: info.hitsToday ?? null, hitsLimit: info.hitsLimit ?? null };
+}
+
+// One match by id (1 hit). `row` is null if they sent nothing usable.
+export async function fetchMatchInfo(externalId, { apiKey = process.env.CRICKETDATA_API_KEY } = {}) {
+    const { data, info } = await call('match_info', { id: externalId }, apiKey);
+    return { row: data ? toMatchRow(data) : null, hitsToday: info.hitsToday ?? null, hitsLimit: info.hitsLimit ?? null };
 }
 
 // ---------- scorecards ----------
