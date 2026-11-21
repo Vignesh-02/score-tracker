@@ -21,8 +21,13 @@ export const matches = pgTable('matches', {
   externalId: text('external_id'),
   // Sport-specific extras that don't fit the columns above. For cricket:
   // { format, statusText, innings: [{ side, number, runs, wickets, overs }] },
-  // with home_score/away_score holding each side's total runs. Null for football.
+  // with home_score/away_score holding each side's total runs. For football:
+  // { phase, clock } while live (src/live/football-clock.js), { halfTime } once finished.
   details: jsonb('details'),
+  // When the provider last changed the match (football-data.org's lastUpdated),
+  // as of the last time we saved a change. Older responses are ignored: their
+  // cache sometimes serves one from before kick-off mid-match.
+  providerUpdatedAt: timestamp('provider_updated_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (table) => [
   // One row per provider match, so syncing updates it instead of adding duplicates.
