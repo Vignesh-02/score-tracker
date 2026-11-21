@@ -14,10 +14,6 @@ const MINUTE_MS = 60_000;
 // the provider's own delay
 const REPORT_LAG_MS = MINUTE_MS;
 
-// Seen going live more than this after the scheduled time: a late kick-off,
-// so the clock starts from when it was seen instead
-const LATE_KICKOFF_MS = 5 * MINUTE_MS;
-
 // Without having seen half-time (e.g. the server started during the second
 // half), assume the second half began this long after kick-off: 45 minutes,
 // a couple of stoppage and 15 of half-time
@@ -29,18 +25,21 @@ const MAX_STOPPAGE = 15;
 // Adds `details.clock` ({ kickoffAt, secondHalfAt }) to a live football row
 // from the adapter, carrying over what earlier syncs saw. `current` is our
 // row before this sync (undefined for a new match).
+//
+// The clock starts at the scheduled kick-off. Starting it from when the match
+// was first seen live would catch the odd late kick-off, but a stale cached
+// response can make a match look "not started" until long after it began (Man
+// City v Fulham's clock started 81 minutes late that way).
 export function withClock(current, row, now = Date.now()) {
     if (row.status !== MATCH_STATUS.LIVE || !row.details?.phase) return row;
 
     const before = current?.details ?? {};
     const seen = before.clock ?? {};
 
-    let { kickoffAt, secondHalfAt = null } = seen;
-    if (!kickoffAt) {
-        const start = row.startTime.getTime();
-        const late = current?.status === MATCH_STATUS.SCHEDULED && now - start > LATE_KICKOFF_MS;
-        kickoffAt = new Date(late ? now - REPORT_LAG_MS : start).toISOString();
-    }
+    // Always the scheduled time, which also corrects clocks saved by the
+    // earlier late kick-off rule
+    const kickoffAt = row.startTime.toISOString();
+    let secondHalfAt = seen.secondHalfAt ?? null;
     if (!secondHalfAt && before.phase === 'PAUSED' && row.details.phase === 'IN_PLAY') {
         secondHalfAt = new Date(now - REPORT_LAG_MS).toISOString();
     }
