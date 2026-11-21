@@ -33,10 +33,16 @@ describe('estimated football clock', () => {
         assert.deepEqual(row.details.clock, clock(kickoff));
     });
 
-    it('starts from when it was seen going live after a late kick-off', () => {
+    it('starts from the scheduled kick-off even when first seen live long after', () => {
+        // e.g. a stale cached response said "not started" until then
         const scheduled = { status: 'scheduled', details: null };
-        const row = withClock(scheduled, live('IN_PLAY'), kickoff + 20 * MIN);
-        assert.deepEqual(row.details.clock, clock(kickoff + 19 * MIN));
+        const row = withClock(scheduled, live('IN_PLAY'), kickoff + 81 * MIN);
+        assert.deepEqual(row.details.clock, clock(kickoff));
+    });
+
+    it('replaces a kick-off time saved later than the scheduled one', () => {
+        const before = { status: 'live', details: { phase: 'IN_PLAY', clock: clock(kickoff + 81 * MIN) } };
+        assert.deepEqual(withClock(before, live('IN_PLAY'), kickoff + 85 * MIN).details.clock, clock(kickoff));
     });
 
     it('notes the second half when half-time ends, and keeps both times', () => {
