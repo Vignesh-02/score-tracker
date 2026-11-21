@@ -49,6 +49,8 @@ const EVENT_STYLE = {
   goal: { label: 'Goal', className: 'bg-amber text-on-amber' },
   wicket: { label: 'Wicket', className: 'bg-live text-ink' },
   start: { label: 'Start', className: 'border border-cyan/50 text-cyan' },
+  half_time: { label: 'HT', className: 'border border-cyan/50 text-cyan' },
+  second_half: { label: '2nd half', className: 'border border-cyan/50 text-cyan' },
   full_time: { label: 'FT', className: 'border border-cyan/50 text-cyan' },
   result: { label: 'Result', className: 'border border-cyan/50 text-cyan' },
   score_correction: { label: 'VAR', className: 'border border-warn/60 text-warn' },

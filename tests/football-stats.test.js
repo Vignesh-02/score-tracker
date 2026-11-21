@@ -100,8 +100,9 @@ describe('football half-time score', () => {
     });
 
     it('is left out while the match is in play or has no half-time score', () => {
+        // In play: only the phase, for the clock (src/live/football-clock.js)
+        assert.deepEqual(toMatchRow(match('IN_PLAY', { home: 0, away: 1 })).details, { phase: 'IN_PLAY' });
         // No `details` key at all, so a sync leaves the column alone
-        assert.ok(!('details' in toMatchRow(match('IN_PLAY', { home: 0, away: 1 }))));
         assert.ok(!('details' in toMatchRow(match('FINISHED', { home: null, away: null }))));
         assert.ok(!('details' in toMatchRow(match('TIMED', undefined))));
     });

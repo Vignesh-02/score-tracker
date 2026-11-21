@@ -242,6 +242,42 @@ describe('Provider sync', () => {
         assert.equal(scores[0].details.statusText, 'Day 2: 1st Session');
     });
 
+    it('ignores a response older than the last change saved', async () => {
+        const id = `${externalId}-older`;
+        const updated = (minutes) => new Date(kickoff + minutes * 60_000);
+        await saveProviderMatches([row({ externalId: id, status: 'live', homeScore: 1, providerUpdatedAt: updated(20) })], { onCreated: track });
+
+        // An old cached copy from before kick-off
+        const changes = [];
+        const result = await saveProviderMatches([row({ externalId: id, status: 'scheduled', homeScore: 0, providerUpdatedAt: updated(-5) })], {
+            onChange: (m) => changes.push(m),
+        });
+        assert.deepEqual(result, { created: 0, updated: 0 });
+        assert.equal(changes.length, 0);
+
+        // A newer one still counts
+        await saveProviderMatches([row({ externalId: id, status: 'live', homeScore: 2, providerUpdatedAt: updated(30) })]);
+        const [saved] = await db.select().from(matches).where(eq(matches.externalId, id));
+        assert.equal(saved.homeScore, 2);
+        assert.equal(saved.providerUpdatedAt.getTime(), updated(30).getTime());
+    });
+
+    it('keeps a live football clock across syncs without counting it as a change', async () => {
+        const id = `${externalId}-clock`;
+        const start = Date.now() - 30 * 60_000;
+        const at = (phase) => row({ externalId: id, status: 'live', startTime: new Date(start), endTime: new Date(start + 7200e3), details: { phase } });
+
+        await saveProviderMatches([at('IN_PLAY')], { onCreated: track });
+        assert.deepEqual(await saveProviderMatches([at('IN_PLAY')]), { created: 0, updated: 0 });
+
+        await saveProviderMatches([at('PAUSED')]);
+        await saveProviderMatches([at('IN_PLAY')]);
+        const [saved] = await db.select().from(matches).where(eq(matches.externalId, id));
+        assert.equal(saved.details.phase, 'IN_PLAY');
+        assert.equal(saved.details.clock.kickoffAt, new Date(start).toISOString());
+        assert.ok(Date.now() - Date.parse(saved.details.clock.secondHalfAt) < 2 * 60_000);
+    });
+
     it('passes the match before the change to onChange, which records feed lines', async () => {
         const id = `${externalId}-events`;
         await saveProviderMatches([row({ externalId: id })], { onCreated: track });

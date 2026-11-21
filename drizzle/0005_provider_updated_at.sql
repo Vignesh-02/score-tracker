@@ -1,0 +1,1 @@
+ALTER TABLE "matches" ADD COLUMN "provider_updated_at" timestamp;

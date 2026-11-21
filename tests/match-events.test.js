@@ -54,6 +54,33 @@ describe('match events for the live updates feed', () => {
         assert.equal(event.message, 'Score corrected: Arsenal 1–1 Chelsea');
     });
 
+    it('gives goals the estimated minute while the clock is running', () => {
+        const kickoff = Date.UTC(2026, 10, 21, 15);
+        const clock = { kickoffAt: new Date(kickoff).toISOString(), secondHalfAt: null };
+        const before = football({ homeScore: 0, awayScore: 0, details: { phase: 'IN_PLAY', clock } });
+        const after = football({ homeScore: 1, awayScore: 0, details: { phase: 'IN_PLAY', clock } });
+
+        const [goal] = describeChange(before, after, kickoff + 22.5 * 60_000);
+        assert.equal(goal.message, "Goal! Arsenal 23' · Arsenal 1–0 Chelsea");
+        assert.equal(goal.minute, 23);
+        assert.equal(goal.period, '1H');
+
+        // Seen only at half-time: when it was scored is unknown
+        const atHalfTime = football({ homeScore: 1, awayScore: 0, details: { phase: 'PAUSED', clock } });
+        assert.deepEqual(messages(describeChange(before, atHalfTime, kickoff + 47 * 60_000)), [
+            'Goal! Arsenal · Arsenal 1–0 Chelsea',
+            'Half-time: Arsenal 1–0 Chelsea',
+        ]);
+    });
+
+    it('reports half-time and the second half', () => {
+        const clock = { kickoffAt: new Date().toISOString(), secondHalfAt: null };
+        const playing = football({ details: { phase: 'IN_PLAY', clock } });
+        const paused = football({ details: { phase: 'PAUSED', clock } });
+        assert.deepEqual(messages(describeChange(playing, paused)), ['Half-time: Arsenal 1–1 Chelsea']);
+        assert.deepEqual(messages(describeChange(paused, playing)), ['Second half under way']);
+    });
+
     it('reports cricket wickets and runs per innings', () => {
         const wicket = describeChange(cricket(), cricket({ details: { innings: [innings('home', 1, 162, 4, 33.2)] } }));
         assert.deepEqual(messages(wicket), ['Wicket! India 162/4 (33.2 ov)']);
