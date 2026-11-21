@@ -18,6 +18,8 @@ import { saveCompetitionStats } from '../src/jobs/football-stats-sync.js';
 import { recordMatchEvents } from '../src/live/match-events.js';
 import { clearHeadToHeadCache, createHeadToHeadHandler } from '../src/routes/head2head.js';
 import { clearScorecardState, createScorecardHandler } from '../src/routes/scorecard.js';
+import { clearSettleState, saveFixtures, settleMissingMatches } from '../src/jobs/cricket-sync.js';
+import { toMatchRow as toCricketRow } from '../src/providers/cricketdata.js';
 import express from 'express';
 
 const TEST_PORT = 8765;
@@ -860,6 +862,85 @@ describe('GET /matches/:id/head2head', () => {
             if (savedKey === undefined) delete process.env.FOOTBALL_DATA_API_KEY;
             else process.env.FOOTBALL_DATA_API_KEY = savedKey;
         }
+    });
+});
+
+describe('Cricket fixtures and matches missing from the list', () => {
+    const tag = `TEST-${Date.now()}`;
+    const apiMatch = (id, when, extra = {}) => ({
+        id: `${tag}-${id}`, name: `TEST A vs TEST B, ${id}, TEST Cup`, matchType: 't20', status: '', dateTimeGMT: when,
+        teams: ['TEST A', 'TEST B'], score: [], matchStarted: false, matchEnded: false, ...extra,
+    });
+    const iso = (time) => new Date(time).toISOString().slice(0, 19);
+    const byExternal = async (id) => (await db.select().from(matches).where(eq(matches.externalId, `${tag}-${id}`)))[0];
+    const insert = async (row) => {
+        const [m] = await db.insert(matches).values(row).returning();
+        createdMatchIds.push(m.id);
+        return m;
+    };
+
+    it('saves upcoming fixtures but leaves a match already live alone', async () => {
+        const live = await insert({ ...toCricketRow(apiMatch('fx-live', iso(Date.now() - 3600e3), { matchStarted: true })), status: 'live' });
+        const created = [];
+        await saveFixtures([
+            toCricketRow(apiMatch('fx-new', iso(Date.now() + 2 * 86400e3))),
+            // /matches can lag: it still has the live one as not started
+            toCricketRow(apiMatch('fx-live', iso(Date.now() + 3600e3))),
+        ], { onCreated: (m) => created.push(m) });
+
+        const fixture = await byExternal('fx-new');
+        createdMatchIds.push(fixture.id);
+        assert.equal(fixture.status, 'scheduled');
+        assert.deepEqual(created.map((m) => m.id), [fixture.id]);
+        assert.equal((await byExternal('fx-live')).status, 'live');
+        assert.equal((await byExternal('fx-live')).startTime.getTime(), live.startTime.getTime());
+    });
+
+    // Dated 2001 so that only these rows are old enough to be looked up
+    it('finishes matches that dropped out of the list, from a lookup or after a time limit', async () => {
+        clearSettleState();
+        const now = Date.UTC(2001, 0, 20, 12);
+        const t20 = '2001-01-10T08:00:00';
+        const rows = {
+            result: await insert({ ...toCricketRow(apiMatch('result', t20, { matchStarted: true })), status: 'live' }),
+            stuck: await insert({ ...toCricketRow(apiMatch('stuck', t20, { matchStarted: true, status: 'TEST A opt to bat' })), status: 'live' }),
+            // No format: allowed five days, so it isn't given up on yet
+            multiDay: await insert({ ...toCricketRow(apiMatch('multi', '2001-01-18T08:00:00', { matchType: undefined, matchStarted: true })), status: 'live' }),
+            seen: await insert({ ...toCricketRow(apiMatch('seen', t20, { matchStarted: true })), status: 'live' }),
+        };
+
+        const lookedUp = [];
+        const fetchInfo = async (externalId) => {
+            lookedUp.push(externalId);
+            const id = externalId.slice(tag.length + 1);
+            const ended = id === 'result' ? { matchEnded: true, status: 'TEST A won by 9 runs', score: [{ r: 150, w: 4, o: 20, inning: 'TEST A Inning 1' }] } : {};
+            const when = id === 'multi' ? '2001-01-18T08:00:00' : t20;
+            return { row: toCricketRow(apiMatch(id, when, { matchStarted: true, matchType: id === 'multi' ? undefined : 't20', ...ended })), hitsToday: null, hitsLimit: null };
+        };
+
+        const statusChanges = [];
+        const result = await settleMissingMatches(new Set([rows.seen.externalId]), { onStatusChange: (m) => statusChanges.push(m.id) }, { now, fetchInfo });
+
+        assert.deepEqual(result, { checked: 3, settled: 2 });
+        assert.ok(!lookedUp.includes(rows.seen.externalId));
+
+        const result1 = await byExternal('result');
+        assert.equal(result1.status, 'finished');
+        assert.equal(result1.homeScore, 150);
+        assert.equal(result1.details.statusText, 'TEST A won by 9 runs');
+
+        const stuck = await byExternal('stuck');
+        assert.equal(stuck.status, 'finished');
+        assert.equal(stuck.details.statusText, null);
+
+        assert.equal((await byExternal('multi')).status, 'live');
+        assert.deepEqual(statusChanges.sort(), [rows.result.id, rows.stuck.id].sort());
+
+        // The one still going isn't looked up again on the next sync
+        lookedUp.length = 0;
+        await settleMissingMatches(new Set(), {}, { now: now + 3 * 60_000, fetchInfo });
+        assert.ok(!lookedUp.includes(rows.multiDay.externalId));
+        assert.deepEqual(lookedUp, [rows.seen.externalId]);
     });
 });
 

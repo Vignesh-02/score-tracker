@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { RotateCw, WifiOff } from 'lucide-react'
 import { useConnectionStatus, useLiveSocket } from '../live/hooks.js'
 
+// Only problems are shown: while connected there's nothing to say
 const STYLES = {
-  open: { dot: 'bg-ok shadow-[0_0_8px_var(--color-ok)]', label: 'Live feed' },
   connecting: { dot: 'bg-warn animate-pulse', label: 'Connecting' },
   reconnecting: { dot: 'bg-warn animate-pulse', label: 'Reconnecting' },
   offline: { dot: 'bg-live', label: 'Offline' },
@@ -24,12 +24,33 @@ function RetryCountdown({ retryAt }) {
   return <span className="font-mono text-xs font-medium normal-case tracking-normal text-muted">retry {seconds}s</span>
 }
 
+// Every page load starts out "connecting" for a moment; only say so if it drags on
+const SHOW_CONNECTING_AFTER_MS = 3000
+
+function useSlowConnect(status) {
+  const [slow, setSlow] = useState(false)
+
+  useEffect(() => {
+    if (status !== 'connecting') return
+    const timer = setTimeout(() => setSlow(true), SHOW_CONNECTING_AFTER_MS)
+    return () => {
+      clearTimeout(timer)
+      setSlow(false)
+    }
+  }, [status])
+
+  return slow
+}
+
 export function ConnectionBadge() {
   const { status, retryAt } = useConnectionStatus()
   const socket = useLiveSocket()
-  const { dot, label } = STYLES[status]
+  const slowConnect = useSlowConnect(status)
 
-  const waitingToRetry = status !== 'open' && retryAt != null
+  if (status === 'open' || (status === 'connecting' && !slowConnect)) return null
+
+  const { dot, label } = STYLES[status]
+  const waitingToRetry = retryAt != null
 
   return (
     <div className="flex items-center gap-2">

@@ -1,8 +1,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { assignInnings, parseCompetition, toMatchRow, toScorecard } from '../src/providers/cricketdata.js';
-import { cricketHitsLeft, nextDelay, noteCricketHits, wantedInterval } from '../src/jobs/cricket-sync.js';
+import { assignInnings, fetchFixtures, fetchMatchInfo, parseCompetition, toMatchRow, toScorecard } from '../src/providers/cricketdata.js';
+import {
+    asFinished, cricketHitsLeft, giveUpAt, nextDelay, noteCricketHits, pickFixtures, settleOverdue, wantedInterval,
+} from '../src/jobs/cricket-sync.js';
 
 // A real /currentMatches response (both pages), with the echoed API key removed
 const { data: fixture } = JSON.parse(readFileSync(new URL('./fixtures/cricketdata-current.json', import.meta.url)));
@@ -177,5 +179,97 @@ describe('cricket hits left today', () => {
     it('starts again from the full limit after midnight UTC', () => {
         noteCricketHits({ hitsToday: 95, hitsLimit: 100 }, { at: Date.UTC(2026, 10, 11, 23), save: false });
         assert.deepEqual(cricketHitsLeft(Date.UTC(2026, 10, 12, 0, 30)), { left: 100, limit: 100 });
+    });
+});
+
+// Replaces fetch with one returning `pages` in turn, recording the URLs
+async function withPages(pages, fn) {
+    const realFetch = globalThis.fetch;
+    const urls = [];
+    globalThis.fetch = async (url) => {
+        urls.push(new URL(url));
+        const body = pages[urls.length - 1] ?? { status: 'success', data: [], info: {} };
+        return new Response(JSON.stringify(body), { status: 200 });
+    };
+    try {
+        return { result: await fn(), urls };
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+}
+
+const apiMatch = (id, when, extra = {}) => ({
+    id, name: `A vs B, ${id}, Test Cup 2026`, matchType: 't20', status: 'Match starts soon', dateTimeGMT: when,
+    teams: ['A', 'B'], score: [], matchStarted: false, matchEnded: false, ...extra,
+});
+
+describe('cricket fixtures', () => {
+    const now = Date.UTC(2026, 10, 21, 12);
+    const row = (id, days, status = 'scheduled') => ({ externalId: id, status, startTime: new Date(now + days * 86400e3) });
+
+    it('reads the given number of pages of /matches', async () => {
+        const info = (n) => ({ totalRows: 17000, hitsToday: n, hitsLimit: 2000 });
+        const { result, urls } = await withPages([
+            { status: 'success', data: [apiMatch('m1', '2026-11-23T10:00:00')], info: info(1) },
+            { status: 'success', data: [apiMatch('m2', '2026-11-24T10:00:00')], info: info(2) },
+        ], () => fetchFixtures({ pages: 2, apiKey: 'k' }));
+
+        assert.deepEqual(urls.map((u) => [u.pathname, u.searchParams.get('offset')]), [['/v1/matches', '0'], ['/v1/matches', '1']]);
+        assert.deepEqual(result.rows.map((r) => r.externalId), ['m1', 'm2']);
+        assert.equal(result.hitsToday, 2);
+    });
+
+    it('keeps matches that haven\'t started, up to two weeks ahead', () => {
+        const picked = pickFixtures([
+            row('soon', 1), row('later', 13), row('too-far', 15), row('past', -1), row('live', 0.1, 'live'),
+        ], new Map(), now);
+        assert.deepEqual(picked.map((r) => r.externalId), ['soon', 'later']);
+    });
+
+    it('never touches a match we already have as live or finished', () => {
+        const existing = new Map([['a', 'scheduled'], ['b', 'live'], ['c', 'finished']]);
+        const picked = pickFixtures([row('a', 1), row('b', 1), row('c', 1)], existing, now);
+        assert.deepEqual(picked.map((r) => r.externalId), ['a']);
+    });
+});
+
+describe('cricket matches that drop out of the list', () => {
+    const start = new Date(Date.UTC(2026, 10, 7));
+    const end = new Date(start.getTime() + 4 * 3600e3);
+
+    it('gives up 12 hours after the estimated end', () => {
+        assert.equal(giveUpAt({ startTime: start, endTime: end, details: { format: 't20' } }), end.getTime() + 12 * 3600e3);
+    });
+
+    it('allows as long as a Test when the format is unknown', () => {
+        assert.equal(giveUpAt({ startTime: start, endTime: end, details: { format: null } }), start.getTime() + (5 * 24 + 12) * 3600e3);
+    });
+
+    it('drops the last status text when marking a match finished', () => {
+        const row = asFinished({ status: 'live', details: { format: 't20', statusText: 'Uganda Women opt to bat', innings: [] } });
+        assert.equal(row.status, 'finished');
+        assert.equal(row.details.statusText, null);
+        assert.deepEqual(row.details.innings, []);
+    });
+
+    it('marks matches still live long after their estimated end finished, even if the list still has them', () => {
+        const live = (format, statusText) => ({ status: 'live', startTime: start, endTime: end, details: { format, statusText } });
+        const [t20, unknown] = settleOverdue([live('t20', 'Uganda Women opt to bat'), live(null, 'Day 3: Stumps')], end.getTime() + 13 * 3600e3);
+        assert.equal(t20.status, 'finished');
+        assert.equal(t20.details.statusText, null);
+        assert.equal(unknown.status, 'live');
+    });
+
+    it('looks a match up by id', async () => {
+        const { result, urls } = await withPages([{
+            status: 'success', info: { hitsToday: 5, hitsLimit: 2000 },
+            data: apiMatch('m9', '2026-11-07T00:00:00', { matchStarted: true, matchEnded: true, status: 'A won by 5 runs' }),
+        }], () => fetchMatchInfo('m9', { apiKey: 'k' }));
+
+        assert.equal(urls[0].pathname, '/v1/match_info');
+        assert.equal(urls[0].searchParams.get('id'), 'm9');
+        assert.equal(result.row.status, 'finished');
+        assert.equal(result.row.details.statusText, 'A won by 5 runs');
+        assert.equal(result.hitsToday, 5);
     });
 });
