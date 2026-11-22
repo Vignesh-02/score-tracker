@@ -1,0 +1,1 @@
+ALTER TABLE "competition_stats" ADD COLUMN "sport" text DEFAULT 'Football' NOT NULL;

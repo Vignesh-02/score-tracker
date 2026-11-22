@@ -7,6 +7,7 @@ import { matches } from '../db/schema.js';
 import { FIXTURE_PAGES, SOURCE, fetchCurrentMatches, fetchFixtures, fetchMatchInfo } from '../providers/cricketdata.js';
 import { MATCH_STATUS } from '../validation/matches.js';
 import { saveProviderMatches } from './football-sync.js';
+import { TABLES_PER_SYNC, syncCricketTables } from './cricket-tables-sync.js';
 
 // CricketData.org allows a number of hits a day (100 free, 2,000 on the
 // cheapest paid plan), and one sync costs one hit per page (about 2), plus the
@@ -287,6 +288,13 @@ export function startCricketSync(callbacks = {}) {
         if (complete && canSpare(CHECKS_PER_SYNC)) {
             await settleMissingMatches(new Set(rows.map((r) => r.externalId)), callbacks)
                 .catch((e) => console.error(`Cricket settle failed: ${e.message}`));
+        }
+
+        // Points tables of tournaments with new results (1 hit each)
+        if (canSpare(TABLES_PER_SYNC)) {
+            await syncCricketTables({ onHits: noteCricketHits })
+                .then((n) => { if (n) console.log(`Cricket tables: ${n} refreshed`); })
+                .catch((e) => console.error(`Cricket tables sync failed: ${e.message}`));
         }
 
         const lastFixtures = new Date(syncState.fixturesSyncedAt ?? 0).getTime();

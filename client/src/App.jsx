@@ -58,9 +58,6 @@ function NothingLive({ next, fixtures, onShowFixtures }) {
 
 const TAB_ACCENT = { [TAB.LIVE]: 'bg-live', [TAB.FIXTURES]: 'bg-amber', [TAB.RESULTS]: 'bg-muted' }
 
-// League tables are football-only
-const TABLES_SPORT = 'Football'
-
 function Matches() {
   const { data: matches, isPending, error, refetch, isRefetching } = useQuery({
     queryKey: matchesQueryKey,
@@ -108,8 +105,9 @@ function Matches() {
         <div role="tabpanel" id={tabPanelId(tab)} aria-labelledby={tabId(tab)}>
           <Tables
             competitionName={filters.competition}
+            sportName={filters.sport}
             matches={matches}
-            onSelect={(competition) => setFilters({ sport: TABLES_SPORT, competition })}
+            onSelect={(competition) => setFilters({ sport: competition.sport, competition: competition.name })}
           />
         </div>
       </div>

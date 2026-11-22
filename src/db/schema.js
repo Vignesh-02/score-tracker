@@ -35,22 +35,31 @@ export const matches = pgTable('matches', {
   uniqueIndex('matches_source_external_id_idx').on(table.source, table.externalId),
 ]);
 
-// One row per competition: its latest league table and top scorers from
-// football-data.org, refreshed by the football stats sync (src/jobs/football-stats-sync.js).
+// One row per competition: its latest league table, and for football its top
+// scorers. Football comes from football-data.org (src/jobs/football-stats-sync.js),
+// cricket points tables from CricketData.org (src/jobs/cricket-tables-sync.js).
 // Kept in the database so a restart doesn't have to fetch them all again.
 export const competitionStats = pgTable('competition_stats', {
-  // football-data.org's code, e.g. 'PL', 'CL'
+  // football-data.org's code ('PL', 'CL') or CricketData.org's series id (a UUID)
   code: text('code').primaryKey(),
+  // 'Football' or 'Cricket', as in matches.sport
+  sport: text('sport').notNull().default('Football'),
   name: text('name').notNull(),
   // e.g. 'England', 'Europe'
   area: text('area'),
   emblem: text('emblem'),
-  // { startDate, endDate, currentMatchday }
+  // Football: { startDate, endDate, currentMatchday }. Cricket: { startDate,
+  // endDate } of the series' matches we know of, and finishedMatches, the
+  // number finished when the table was fetched.
   season: jsonb('season'),
-  // [{ stage, group, table: [{ position, team, crest, played, won, draw, lost,
-  //   goalsFor, goalsAgainst, goalDifference, points }] }]; one entry per group
+  // [{ stage, group, table: [...] }]; one entry per group. Football rows:
+  // { position, team, crest, played, won, draw, lost, goalsFor, goalsAgainst,
+  // goalDifference, points }. Cricket rows (one table): { position, team,
+  // crest, played, won, lost, tied, noResult, points }. Empty for a cricket
+  // series without a table (a bilateral tour), so it isn't asked for again.
   standings: jsonb('standings').notNull(),
-  // [{ player, team, crest, played, goals, assists, penalties }], most goals first
+  // Football: [{ player, team, crest, played, goals, assists, penalties }],
+  // most goals first. Always empty for cricket.
   scorers: jsonb('scorers').notNull(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });

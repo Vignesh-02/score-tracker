@@ -43,6 +43,13 @@
       "when": 1795267056331,
       "tag": "0005_provider_updated_at",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795334126025,
+      "tag": "0006_competition_sport",
+      "breakpoints": true
     }
   ]
 }

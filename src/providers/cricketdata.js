@@ -105,6 +105,8 @@ export function toMatchRow(match) {
             innings,
             // CricketData.org only has scorecards for "fantasy enabled" matches
             hasScorecard: Boolean(match.fantasyEnabled),
+            // The tournament or tour it belongs to, for its points table
+            seriesId: match.series_id ? String(match.series_id) : null,
         },
     };
 }
@@ -194,6 +196,45 @@ export async function fetchFixtures({ pages = FIXTURE_PAGES, apiKey = process.en
 export async function fetchMatchInfo(externalId, { apiKey = process.env.CRICKETDATA_API_KEY } = {}) {
     const { data, info } = await call('match_info', { id: externalId }, apiKey);
     return { row: data ? toMatchRow(data) : null, hitsToday: info.hitsToday ?? null, hitsLimit: info.hitsLimit ?? null };
+}
+
+// ---------- points tables ----------
+
+// A series' points table (1 hit). CricketData.org sends played, won, lost,
+// tied and no-result per team, in alphabetical order, with no points or net
+// run rate. Points here are the usual 2 a win and 1 for a tie or no result;
+// teams level on points are ordered by wins, then name, since the official
+// tie-breaker (net run rate) isn't available.
+export const WIN_POINTS = 2;
+export const SHARED_POINTS = 1;
+
+// [{ position, team, crest, played, won, lost, tied, noResult, points }]
+export function toPointsTable(data) {
+    const rows = (Array.isArray(data) ? data : [])
+        .filter((t) => t?.teamname)
+        .map((t) => {
+            const won = t.wins ?? 0;
+            const tied = t.ties ?? 0;
+            const noResult = t.nr ?? 0;
+            return {
+                team: t.teamname.trim(),
+                crest: t.img || null,
+                played: t.matches ?? 0,
+                won,
+                lost: t.loss ?? 0,
+                tied,
+                noResult,
+                points: won * WIN_POINTS + (tied + noResult) * SHARED_POINTS,
+            };
+        })
+        .sort((a, b) => b.points - a.points || b.won - a.won || a.team.localeCompare(b.team));
+
+    return rows.map((row, i) => ({ position: i + 1, ...row }));
+}
+
+export async function fetchSeriesPoints(seriesId, { apiKey = process.env.CRICKETDATA_API_KEY } = {}) {
+    const { data, info } = await call('series_points', { id: seriesId }, apiKey);
+    return { table: toPointsTable(data), hitsToday: info.hitsToday ?? null, hitsLimit: info.hitsLimit ?? null };
 }
 
 // ---------- scorecards ----------

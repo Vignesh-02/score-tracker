@@ -1,0 +1,95 @@
+{
+  "data": [
+    {
+      "teamname": "Adelaide Strikers Women",
+      "shortname": "AS-W",
+      "img": "https://g.cricapi.com/iapi/2645-638040168980778527.webp?w=48",
+      "matches": 8,
+      "wins": 5,
+      "loss": 3,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Brisbane Heat Women",
+      "shortname": "BH-W",
+      "img": "https://g.cricapi.com/iapi/2625-638040173617905942.webp?w=48",
+      "matches": 8,
+      "wins": 4,
+      "loss": 4,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Hobart Hurricanes Women",
+      "shortname": "HB-W",
+      "img": "https://g.cricapi.com/iapi/2635-638040172943294988.webp?w=48",
+      "matches": 8,
+      "wins": 1,
+      "loss": 6,
+      "ties": 0,
+      "nr": 1
+    },
+    {
+      "teamname": "Melbourne Renegades Women",
+      "shortname": "MR-W",
+      "img": "https://g.cricapi.com/iapi/2655-638040167731668168.webp?w=48",
+      "matches": 7,
+      "wins": 2,
+      "loss": 4,
+      "ties": 0,
+      "nr": 1
+    },
+    {
+      "teamname": "Melbourne Stars Women",
+      "shortname": "MS-W",
+      "img": "https://g.cricapi.com/iapi/2646-638040168260625211.webp?w=48",
+      "matches": 7,
+      "wins": 2,
+      "loss": 5,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Perth Scorchers Women",
+      "shortname": "PS-W",
+      "img": "https://g.cricapi.com/iapi/2656-638040167042932787.webp?w=48",
+      "matches": 8,
+      "wins": 6,
+      "loss": 2,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Sydney Sixers Women",
+      "shortname": "SS-W",
+      "img": "https://g.cricapi.com/iapi/2626-638040170781201689.webp?w=48",
+      "matches": 8,
+      "wins": 7,
+      "loss": 1,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Sydney Thunder Women",
+      "shortname": "ST-W",
+      "img": "https://g.cricapi.com/iapi/2636-638040169751591741.webp?w=48",
+      "matches": 8,
+      "wins": 3,
+      "loss": 5,
+      "ties": 0,
+      "nr": 0
+    }
+  ],
+  "status": "success",
+  "info": {
+    "hitsToday": 917,
+    "hitsUsed": 1,
+    "hitsLimit": 2000,
+    "credits": 0,
+    "server": 11,
+    "queryTime": 22.3302,
+    "s": 0,
+    "cache": 0
+  }
+}

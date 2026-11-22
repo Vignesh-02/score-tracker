@@ -96,6 +96,65 @@ function StandingsTable({ standing, title, liveTeams }) {
   )
 }
 
+// Cricket: CricketData.org sends played, won, lost, tied and no result; the
+// points (2 a win, 1 for a tie or no result) and the order are worked out on
+// the server, without net run rate
+function PointsTable({ standing, liveTeams }) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-line bg-panel">
+      <table className="w-full table-fixed text-sm">
+        <thead className="border-b border-line text-xs">
+          <tr>
+            <th scope="col" className={`${head} w-9 pl-3 text-left sm:w-12 sm:pl-4`}>
+              <abbr title="Position">#</abbr>
+            </th>
+            <th scope="col" className={`${head} text-left`}>Team</th>
+            <th scope="col" className={th}><abbr title="Played">P</abbr></th>
+            <th scope="col" className={th}><abbr title="Won">W</abbr></th>
+            <th scope="col" className={th}><abbr title="Lost">L</abbr></th>
+            <th scope="col" className={`${th} hidden sm:table-cell`}><abbr title="Tied">T</abbr></th>
+            <th scope="col" className={`${th} hidden sm:table-cell`}><abbr title="No result">NR</abbr></th>
+            <th scope="col" className={`${head} w-10 pr-3 text-right text-amber sm:w-12 sm:pr-4`}><abbr title="Points">Pts</abbr></th>
+          </tr>
+        </thead>
+        <tbody>
+          {standing.table.map((row) => (
+            <tr key={row.team} className="border-b border-line/60 last:border-0 hover:bg-line/30">
+              <td className={`${td} pl-3 text-left text-muted sm:pl-4`}>{row.position}</td>
+              <th scope="row" className="px-1.5 py-2 text-left font-semibold tracking-wide sm:px-2">
+                <span className="flex items-center gap-2">
+                  <Crest src={row.crest} />
+                  <span className="min-w-0 truncate" title={row.team}>{row.team}</span>
+                  {liveTeams.has(row.team) && <LiveDot />}
+                </span>
+              </th>
+              <td className={td}>{row.played}</td>
+              <td className={td}>{row.won}</td>
+              <td className={td}>{row.lost}</td>
+              <td className={`${td} hidden sm:table-cell`}>{row.tied}</td>
+              <td className={`${td} hidden sm:table-cell`}>{row.noResult}</td>
+              <td className={`${td} pr-3 font-bold text-amber sm:pr-4`}>{row.points}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function PointsNote() {
+  return (
+    <div className="rounded-lg border border-line bg-panel px-4 py-3 text-sm text-muted">
+      <p className="font-bold tracking-[0.15em] uppercase">About this table</p>
+      <p className="mt-2">2 points for a win, 1 for a tie or no result. Some tournaments award points differently.</p>
+      <p className="mt-2">
+        Net run rate isn't available, so teams level on points are ordered by wins and may differ from the official
+        table.
+      </p>
+    </div>
+  )
+}
+
 function TopScorers({ scorers }) {
   const showAssists = scorers.some((s) => s.assists != null)
 
@@ -152,14 +211,44 @@ function Message({ title, children }) {
   )
 }
 
-// The Tables tab: pick a competition, see its table(s) and top scorers. The
-// choice is the same `competition` filter the match tabs use, so switching to
-// Results afterwards shows that competition's results.
-export function Tables({ competitionName, onSelect, matches }) {
+const SPORT_LABELS = { Football: 'Football', Cricket: 'Cricket' }
+
+// Football or cricket, when both have tables
+function SportSwitch({ sports, value, onChange }) {
+  return (
+    <div className="flex rounded-md border border-line bg-panel p-0.5" role="group" aria-label="Sport">
+      {sports.map((sport) => (
+        <button
+          key={sport}
+          type="button"
+          onClick={() => onChange(sport)}
+          aria-pressed={sport === value}
+          className={`rounded-sm px-3 py-1 text-sm font-bold tracking-wider uppercase transition ${
+            sport === value ? 'bg-amber text-on-amber' : 'text-muted hover:text-ink'
+          }`}
+        >
+          {SPORT_LABELS[sport] ?? sport}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// The Tables tab: pick a sport and competition, see its table(s) and, for
+// football, top scorers. The choice is the same sport and `competition`
+// filters the match tabs use, so switching to Results afterwards shows that
+// competition's results.
+export function Tables({ competitionName, sportName, onSelect, matches }) {
   const now = useNow()
   const list = useQuery({ queryKey: competitionsQueryKey, queryFn: fetchCompetitions, staleTime: STALE_MS })
   const competitions = list.data ?? []
-  const selected = competitions.find((c) => c.name === competitionName) ?? competitions[0]
+  const selected =
+    competitions.find((c) => c.name === competitionName) ??
+    competitions.find((c) => c.sport === sportName) ??
+    competitions[0]
+  const sports = [...new Set(competitions.map((c) => c.sport))]
+  const sameSport = competitions.filter((c) => c.sport === selected?.sport)
+  const cricket = selected?.sport === 'Cricket'
 
   const detail = useQuery({
     queryKey: competitionQueryKey(selected?.code),
@@ -172,7 +261,7 @@ export function Tables({ competitionName, onSelect, matches }) {
   if (list.isPending) return <TablesSkeleton />
   if (list.error) return <Message title="Couldn't load tables">{list.error.message}</Message>
   if (competitions.length === 0) {
-    return <Message title="No tables yet">League tables appear here a few minutes after the server starts.</Message>
+    return <Message title="No tables yet">Tables appear here a few minutes after the server starts.</Message>
   }
 
   // Teams in this competition playing right now get a live dot
@@ -189,14 +278,21 @@ export function Tables({ competitionName, onSelect, matches }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
+        {sports.length > 1 && (
+          <SportSwitch
+            sports={sports}
+            value={selected.sport}
+            onChange={(sport) => onSelect(competitions.find((c) => c.sport === sport))}
+          />
+        )}
         <label className="relative w-full sm:w-auto">
           <span className="sr-only">Competition</span>
           <select
             value={selected.name}
-            onChange={(e) => onSelect(e.target.value)}
+            onChange={(e) => onSelect(sameSport.find((c) => c.name === e.target.value))}
             className="w-full appearance-none rounded-md border border-line bg-panel py-1.5 pr-9 pl-3.5 text-sm font-bold tracking-wider uppercase transition hover:border-muted focus:border-amber focus:outline-none sm:w-auto"
           >
-            {competitions.map((c) => (
+            {sameSport.map((c) => (
               <option key={c.code} value={c.name}>
                 {c.name}{c.area ? ` · ${c.area}` : ''}
               </option>
@@ -206,7 +302,7 @@ export function Tables({ competitionName, onSelect, matches }) {
         </label>
         {data && (
           <p className="font-mono text-xs text-muted">
-            {matchday ? `Matchday ${matchday} · ` : ''}Updated {updatedAgo(data.updatedAt, now)}
+            {matchday && !cricket ? `Matchday ${matchday} · ` : ''}Updated {updatedAgo(data.updatedAt, now)}
           </p>
         )}
       </div>
@@ -220,6 +316,8 @@ export function Tables({ competitionName, onSelect, matches }) {
           <div className="min-w-0 space-y-4">
             {standings.length === 0 ? (
               <Message title="No table for this competition">It may be in a knockout round.</Message>
+            ) : cricket ? (
+              <PointsTable standing={standings[0]} liveTeams={liveTeams} />
             ) : (
               standings.map((s) => (
                 <StandingsTable
@@ -231,7 +329,7 @@ export function Tables({ competitionName, onSelect, matches }) {
               ))
             )}
           </div>
-          <TopScorers scorers={data.scorers ?? []} />
+          {cricket ? <PointsNote /> : <TopScorers scorers={data.scorers ?? []} />}
         </div>
       )}
     </div>
