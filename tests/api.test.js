@@ -19,7 +19,8 @@ import { recordMatchEvents } from '../src/live/match-events.js';
 import { clearHeadToHeadCache, createHeadToHeadHandler } from '../src/routes/head2head.js';
 import { clearScorecardState, createScorecardHandler } from '../src/routes/scorecard.js';
 import { clearSettleState, saveFixtures, settleMissingMatches } from '../src/jobs/cricket-sync.js';
-import { toMatchRow as toCricketRow } from '../src/providers/cricketdata.js';
+import { syncCricketTables } from '../src/jobs/cricket-tables-sync.js';
+import { toMatchRow as toCricketRow, toPointsTable } from '../src/providers/cricketdata.js';
 import express from 'express';
 
 const TEST_PORT = 8765;
@@ -1124,6 +1125,120 @@ describe('GET /competitions', () => {
     it('returns 404 for an unknown competition and 400 for a malformed code', async () => {
         assert.equal((await request('GET', '/competitions/ZZZZ9', undefined, { admin: false })).status, 404);
         assert.equal((await request('GET', '/competitions/not-a-code!', undefined, { admin: false })).status, 400);
+    });
+});
+
+describe('Cricket points tables', () => {
+    // Series ids no real series uses; the synced matches are dated 2002, so
+    // only these rows are near the `now` passed in
+    const tag = `tst-${Date.now()}`;
+    const CUP = `${tag}-cup`;
+    const TOUR = `${tag}-tour`;
+    const PAIR = `${tag}-pair`;
+    const LISTED = `${tag}-listed`;
+    const EMPTY = `${tag}-empty`;
+    const now = Date.UTC(2002, 2, 10, 12);
+    const day = 24 * 60 * 60 * 1000;
+
+    const insert = async (id, seriesId, competition, status, daysAgo) => {
+        const startTime = new Date(now - daysAgo * day);
+        const [m] = await db.insert(matches).values({
+            source: 'cricketdata', externalId: `${tag}-${id}`, sport: 'Cricket', competition,
+            homeTeam: 'TEST A', awayTeam: 'TEST B', status, startTime, endTime: new Date(startTime.getTime() + 4 * 3600e3),
+            details: { format: 't20', innings: [], seriesId },
+        }).returning();
+        createdMatchIds.push(m.id);
+        return m;
+    };
+
+    const team = (teamname, wins, loss) => ({ teamname, matches: wins + loss, wins, loss, ties: 0, nr: 0 });
+    const asked = [];
+    const fetchPoints = async (id) => {
+        asked.push(id);
+        const teams = id === PAIR ? [team('TEST A', 1, 0), team('TEST B', 0, 1)]
+            : [team('TEST A', 1, 1), team('TEST B', 0, 2), team('TEST C', 2, 0)];
+        return { table: toPointsTable(teams), hitsToday: 5, hitsLimit: 100 };
+    };
+    const stored = async (code) => (await db.select().from(competitionStats).where(eq(competitionStats.code, code)))[0];
+
+    after(async () => {
+        await db.delete(competitionStats).where(inArray(competitionStats.code, [CUP, TOUR, PAIR, LISTED, EMPTY]));
+    });
+
+    it('fetches tables for tournaments with results, not for tours', async () => {
+        const cup = await insert('c1', CUP, 'TEST Cup 2002', 'finished', 3);
+        await insert('c2', CUP, 'TEST Cup 2002', 'finished', 1);
+        await insert('c3', CUP, 'TEST Cup 2002', 'scheduled', -2);
+        await insert('t1', TOUR, 'TEST A tour of TEST B 2002', 'finished', 1);
+        await insert('p1', PAIR, 'TEST Pair Series 2002', 'finished', 1);
+
+        const hits = [];
+        const fetched = await syncCricketTables({ now, fetchPoints, onHits: (h) => hits.push(h) });
+        assert.equal(fetched, 2);
+        assert.deepEqual(asked.sort(), [CUP, PAIR].sort());
+        assert.deepEqual(hits[0], { hitsToday: 5, hitsLimit: 100 });
+
+        const row = await stored(CUP);
+        assert.equal(row.sport, 'Cricket');
+        assert.equal(row.name, 'TEST Cup 2002');
+        assert.deepEqual(row.scorers, []);
+        assert.deepEqual(row.standings[0].table.map((t) => [t.position, t.team, t.points]), [[1, 'TEST C', 4], [2, 'TEST A', 2], [3, 'TEST B', 0]]);
+        assert.deepEqual(row.season, {
+            startDate: cup.startTime.toISOString(), endDate: new Date(now + 2 * day).toISOString(), finishedMatches: 2, recheck: false,
+        });
+        // A table of two is a bilateral series: saved empty, so it isn't asked again
+        assert.deepEqual((await stored(PAIR)).standings, []);
+        assert.equal(await stored(TOUR), undefined);
+    });
+
+    it('fetches again only after a new result', async () => {
+        asked.length = 0;
+        // As if the tables were fetched at `now`
+        await db.update(competitionStats).set({ updatedAt: new Date(now) }).where(inArray(competitionStats.code, [CUP, PAIR]));
+        assert.equal(await syncCricketTables({ now: now + 20 * 60_000, fetchPoints }), 0);
+
+        await db.update(matches).set({ status: 'finished' }).where(eq(matches.externalId, `${tag}-c3`));
+        // Not yet: CricketData.org gets 15 minutes to count it
+        assert.equal(await syncCricketTables({ now: now + 5 * 60_000, fetchPoints }), 0);
+        assert.equal(await syncCricketTables({ now: now + 20 * 60_000, fetchPoints }), 1);
+        assert.deepEqual(asked, [CUP]);
+        assert.equal((await stored(CUP)).season.finishedMatches, 3);
+
+        // Once more an hour later, and then not again
+        await db.update(competitionStats).set({ updatedAt: new Date(now) }).where(eq(competitionStats.code, CUP));
+        asked.length = 0;
+        assert.equal(await syncCricketTables({ now: now + 30 * 60_000, fetchPoints }), 0);
+        assert.equal(await syncCricketTables({ now: now + 61 * 60_000, fetchPoints }), 1);
+        await db.update(competitionStats).set({ updatedAt: new Date(now) }).where(eq(competitionStats.code, CUP));
+        assert.equal(await syncCricketTables({ now: now + 3 * 3600e3, fetchPoints }), 0);
+        assert.deepEqual(asked, [CUP]);
+    });
+
+    it('lists cricket tables after football, leaving out series without one', async () => {
+        const date = (offsetDays) => new Date(Date.now() + offsetDays * day).toISOString();
+        const season = { startDate: date(-10), endDate: date(5), finishedMatches: 4 };
+        const table = toPointsTable([team('TEST A', 2, 0), team('TEST B', 1, 1), team('TEST C', 0, 2)]);
+        await saveCompetitionStats(
+            { code: LISTED, sport: 'Cricket', name: 'TEST Listed Cup', area: null, emblem: null, season },
+            { standings: [{ stage: null, group: null, table }], scorers: [] },
+        );
+        await saveCompetitionStats(
+            { code: EMPTY, sport: 'Cricket', name: 'TEST Empty Series', area: null, emblem: null, season },
+            { standings: [], scorers: [] },
+        );
+
+        const res = await request('GET', '/competitions', undefined, { admin: false });
+        const list = res.json.data;
+        const listed = list.find((c) => c.code === LISTED);
+        assert.equal(listed.sport, 'Cricket');
+        assert.equal(listed.hasTable, undefined);
+        assert.ok(!list.some((c) => c.code === EMPTY));
+        const firstCricket = list.findIndex((c) => c.sport === 'Cricket');
+        assert.ok(list.slice(firstCricket).every((c) => c.sport === 'Cricket'));
+
+        const one = await request('GET', `/competitions/${LISTED.toUpperCase()}`, undefined, { admin: false });
+        assert.equal(one.status, 200);
+        assert.deepEqual(one.json.data.standings[0].table, table);
     });
 });
 

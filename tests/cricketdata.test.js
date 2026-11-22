@@ -1,7 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { assignInnings, fetchFixtures, fetchMatchInfo, parseCompetition, toMatchRow, toScorecard } from '../src/providers/cricketdata.js';
+import { assignInnings, fetchFixtures, fetchMatchInfo, parseCompetition, toMatchRow, toPointsTable, toScorecard } from '../src/providers/cricketdata.js';
+import { dueSeries, seriesFromMatches } from '../src/jobs/cricket-tables-sync.js';
 import {
     asFinished, cricketHitsLeft, giveUpAt, nextDelay, noteCricketHits, pickFixtures, settleOverdue, wantedInterval,
 } from '../src/jobs/cricket-sync.js';
@@ -271,5 +272,99 @@ describe('cricket matches that drop out of the list', () => {
         assert.equal(result.row.status, 'finished');
         assert.equal(result.row.details.statusText, 'A won by 5 runs');
         assert.equal(result.hitsToday, 5);
+    });
+});
+
+// A real /series_points response (Womens Big Bash League 2026), key removed
+const { data: wbblPoints } = JSON.parse(readFileSync(new URL('./fixtures/cricketdata-points-wbbl.json', import.meta.url)));
+
+describe('CricketData.org points tables', () => {
+    it('keeps the series id of each match', () => {
+        const row = toMatchRow(fixture[0]);
+        assert.equal(row.details.seriesId, fixture[0].series_id);
+        assert.equal(toMatchRow({ ...fixture[0], series_id: undefined }).details.seriesId, null);
+    });
+
+    it('adds points and orders a real table by points, then wins', () => {
+        const table = toPointsTable(wbblPoints);
+        assert.deepEqual(table.map((t) => [t.position, t.team, t.points]), [
+            [1, 'Sydney Sixers Women', 14],
+            [2, 'Perth Scorchers Women', 12],
+            [3, 'Adelaide Strikers Women', 10],
+            [4, 'Brisbane Heat Women', 8],
+            [5, 'Sydney Thunder Women', 6],
+            [6, 'Melbourne Renegades Women', 5],
+            [7, 'Melbourne Stars Women', 4],
+            [8, 'Hobart Hurricanes Women', 3],
+        ]);
+        assert.deepEqual(table[7], {
+            position: 8, team: 'Hobart Hurricanes Women', crest: wbblPoints[2].img,
+            played: 8, won: 1, lost: 6, tied: 0, noResult: 1, points: 3,
+        });
+    });
+
+    it('breaks a tie on points by wins', () => {
+        const table = toPointsTable([
+            { teamname: 'B', matches: 3, wins: 1, loss: 0, ties: 0, nr: 2 },
+            { teamname: 'A', matches: 3, wins: 2, loss: 1, ties: 0, nr: 0 },
+        ]);
+        assert.deepEqual(table.map((t) => [t.team, t.points]), [['A', 4], ['B', 4]]);
+        assert.deepEqual(toPointsTable(null), []);
+    });
+
+    const NOW = Date.parse('2026-11-22T12:00:00Z');
+    const HOUR = 3600e3;
+    const match = (seriesId, competition, status, hoursAgo) => ({
+        competition, status, details: { seriesId },
+        startTime: new Date(NOW - hoursAgo * HOUR), endTime: new Date(NOW - (hoursAgo - 4) * HOUR),
+    });
+
+    it('groups matches by series', () => {
+        const [s] = seriesFromMatches([
+            match('s1', 'TEST Cup', 'finished', 50),
+            match('s1', 'TEST Cup', 'live', 1),
+            match('s1', 'TEST Cup', 'scheduled', -24),
+            { ...match(null, 'No series', 'finished', 5) },
+        ]);
+        assert.equal(s.code, 's1');
+        assert.equal(s.started, 2);
+        assert.equal(s.finished, 1);
+        assert.equal(s.startDate, NOW - 50 * HOUR);
+        assert.equal(s.endDate, NOW + 24 * HOUR);
+    });
+
+    it('asks for a table only when it can have changed', () => {
+        const series = seriesFromMatches([
+            match('new', 'TEST New Cup', 'live', 1),
+            match('notyet', 'TEST Later Cup', 'scheduled', -5),
+            match('tour', 'TEST A tour of TEST B', 'finished', 10),
+            match('result', 'TEST Result Cup', 'finished', 5),
+            match('quiet', 'TEST Quiet Cup', 'finished', 100),
+            match('none', 'TEST Odd Series', 'finished', 100),
+            match('ended', 'TEST Old Cup', 'finished', 24 * 20),
+        ]);
+        const row = (finishedMatches, hoursAgo, hasTable = true, recheck = false) => ({
+            standings: hasTable ? [{ table: [{}] }] : [], season: { finishedMatches, recheck }, updatedAt: new Date(NOW - hoursAgo * HOUR),
+        });
+        const stored = new Map([
+            ['result', row(0, 3)],
+            ['quiet', row(1, 3)],
+            ['none', row(0, 3, false)],
+        ]);
+        const due = dueSeries(series, stored, NOW);
+        assert.deepEqual(due.map((s) => [s.code, s.recheck]), [['new', false], ['result', true]]);
+
+        // After a result: asked once more an hour later, in case it was counted late
+        stored.set('result', row(1, 0.5, true, true));
+        assert.deepEqual(dueSeries(series, stored, NOW).map((s) => s.code), ['new']);
+        stored.set('result', row(1, 2, true, true));
+        assert.deepEqual(dueSeries(series, stored, NOW).map((s) => [s.code, s.recheck]), [['new', false], ['result', false]]);
+        // ...and not again after that
+        stored.set('result', row(1, 2, true, false));
+        assert.deepEqual(dueSeries(series, stored, NOW).map((s) => s.code), ['new']);
+
+        // A series without a table is asked about again a day later
+        stored.set('none', row(0, 25, false));
+        assert.ok(dueSeries(series, stored, NOW).some((s) => s.code === 'none'));
     });
 });

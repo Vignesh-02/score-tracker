@@ -19,13 +19,14 @@ export async function fetchMatches({ limit = 200 } = {}) {
 
 export const matchesQueryKey = ['matches']
 
-// League tables (football only): the competitions that have one, in season
+// League and points tables: the competitions that have one, in season, each
+// with its sport ('Football' or 'Cricket')
 export async function fetchCompetitions() {
   const { data } = await getJson('/competitions')
   return data
 }
 
-// One competition's table(s) and top scorers
+// One competition's table(s), and football's top scorers
 export async function fetchCompetition(code) {
   const { data } = await getJson(`/competitions/${encodeURIComponent(code)}`)
   return data
