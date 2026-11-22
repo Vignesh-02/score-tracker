@@ -76,6 +76,22 @@ describe('estimated football clock', () => {
         assert.equal(at(secondHalf, 140), 'ET');
     });
 
+    it('shows half-time from 48 minutes in, even when they still say in play', () => {
+        // Swansea v West Brom stayed IN_PLAY through half-time and read 45+16'
+        const details = { phase: 'IN_PLAY', clock: clock(kickoff) };
+        assert.equal(matchMinute(details, kickoff + 47 * MIN).label, "45+3'");
+        assert.equal(matchMinute(details, kickoff + 48 * MIN).label, 'HT');
+        assert.equal(matchMinute(details, kickoff + 61 * MIN).label, 'HT');
+        assert.equal(matchMinute(details, kickoff + 62 * MIN).label, "46'");
+    });
+
+    it('ignores a reported restart too soon after kick-off', () => {
+        // Stoke v Birmingham "restarted" 49 minutes in
+        const details = { phase: 'IN_PLAY', clock: clock(kickoff, kickoff + 49 * MIN) };
+        assert.equal(matchMinute(details, kickoff + 55 * MIN).label, 'HT');
+        assert.equal(matchMinute(details, kickoff + 70 * MIN).label, "54'");
+    });
+
     it('assumes the second half began 62 minutes in when half-time wasn\'t seen', () => {
         const details = { phase: 'IN_PLAY', clock: clock(kickoff) };
         assert.equal(matchMinute(details, kickoff + 80 * MIN).label, "64'");
@@ -89,7 +105,8 @@ describe('estimated football clock', () => {
 
     it('gives the same minutes as the copy in the client', () => {
         const cases = [
-            [{ phase: 'IN_PLAY', clock: clock(kickoff) }, [0, 10, 46, 70, 100]],
+            [{ phase: 'IN_PLAY', clock: clock(kickoff) }, [0, 10, 46, 48, 55, 70, 100]],
+            [{ phase: 'IN_PLAY', clock: clock(kickoff, kickoff + 49 * MIN) }, [50, 70]],
             [{ phase: 'IN_PLAY', clock: clock(kickoff, kickoff + 63 * MIN) }, [64, 90, 110, 150]],
             [{ phase: 'PAUSED', clock: clock(kickoff) }, [50]],
         ];

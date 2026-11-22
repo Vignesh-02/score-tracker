@@ -14,10 +14,21 @@ const MINUTE_MS = 60_000;
 // the provider's own delay
 const REPORT_LAG_MS = MINUTE_MS;
 
-// Without having seen half-time (e.g. the server started during the second
-// half), assume the second half began this long after kick-off: 45 minutes,
-// a couple of stoppage and 15 of half-time
+// Their free plan doesn't report half-time reliably: on 21 Nov some matches
+// stayed IN_PLAY right through it (so the clock read 45+15'), and others went
+// back to IN_PLAY about 50 minutes after kick-off, well before the restart.
+// So the clock follows the usual shape of a match, using their status only
+// where it fits:
+// - first half up to FIRST_HALF_MS after kick-off (45 minutes and up to 3 of
+//   stoppage), then half-time
+// - the second half from a reported restart RESTART_FROM_MS to RESTART_UNTIL_MS
+//   after kick-off, otherwise from SECOND_HALF_AFTER_MS (45 minutes, a couple
+//   of stoppage and 15 of half-time)
+// - PAUSED always shows half-time
+const FIRST_HALF_MS = 48 * MINUTE_MS;
 const SECOND_HALF_AFTER_MS = 62 * MINUTE_MS;
+const RESTART_FROM_MS = 58 * MINUTE_MS;
+const RESTART_UNTIL_MS = 80 * MINUTE_MS;
 
 // Beyond 90+15 it's extra time, where the estimate isn't worth showing
 const MAX_STOPPAGE = 15;
@@ -59,15 +70,16 @@ export function matchMinute(details, now = Date.now()) {
 
     const since = (from) => Math.max(1, Math.floor((now - from) / MINUTE_MS) + 1);
 
-    const seenSecondHalf = Date.parse(details.clock.secondHalfAt ?? '');
-    const secondHalf = Number.isFinite(seenSecondHalf) ? seenSecondHalf
-        : now - kickoff > SECOND_HALF_AFTER_MS ? kickoff + SECOND_HALF_AFTER_MS
-        : null;
-
-    if (secondHalf == null) {
+    if (now - kickoff < FIRST_HALF_MS) {
         const minute = since(kickoff);
         return { label: minute <= 45 ? `${minute}'` : `45+${minute - 45}'`, minute, period: '1H' };
     }
+
+    const seen = Date.parse(details.clock.secondHalfAt ?? '');
+    const plausible = Number.isFinite(seen) && seen - kickoff >= RESTART_FROM_MS && seen - kickoff <= RESTART_UNTIL_MS;
+    const secondHalf = plausible ? seen : kickoff + SECOND_HALF_AFTER_MS;
+
+    if (now < secondHalf) return { label: 'HT', minute: 45, period: 'HT' };
 
     const minute = 45 + since(secondHalf);
     if (minute <= 90) return { label: `${minute}'`, minute, period: '2H' };
