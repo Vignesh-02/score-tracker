@@ -1160,6 +1160,12 @@ describe('Cricket points tables', () => {
         return { table: toPointsTable(teams), hitsToday: 5, hitsLimit: 100 };
     };
     const stored = async (code) => (await db.select().from(competitionStats).where(eq(competitionStats.code, code)))[0];
+    // TEST Cup is played in two groups; asked once, then kept with the table
+    const groupsAsked = [];
+    const fetchGroups = async (id) => {
+        groupsAsked.push(id);
+        return { groups: { 'test a': 'Group 1', 'test c': 'Group 1', 'test b': 'Group 2' }, hitsToday: 6, hitsLimit: 100 };
+    };
 
     after(async () => {
         await db.delete(competitionStats).where(inArray(competitionStats.code, [CUP, TOUR, PAIR, LISTED, EMPTY]));
@@ -1173,7 +1179,7 @@ describe('Cricket points tables', () => {
         await insert('p1', PAIR, 'TEST Pair Series 2002', 'finished', 1);
 
         const hits = [];
-        const fetched = await syncCricketTables({ now, fetchPoints, onHits: (h) => hits.push(h) });
+        const fetched = await syncCricketTables({ now, fetchPoints, fetchGroups, onHits: (h) => hits.push(h) });
         assert.equal(fetched, 2);
         assert.deepEqual(asked.sort(), [CUP, PAIR].sort());
         assert.deepEqual(hits[0], { hitsToday: 5, hitsLimit: 100 });
@@ -1182,9 +1188,14 @@ describe('Cricket points tables', () => {
         assert.equal(row.sport, 'Cricket');
         assert.equal(row.name, 'TEST Cup 2002');
         assert.deepEqual(row.scorers, []);
-        assert.deepEqual(row.standings[0].table.map((t) => [t.position, t.team, t.points]), [[1, 'TEST C', 4], [2, 'TEST A', 2], [3, 'TEST B', 0]]);
+        assert.deepEqual(row.standings.map((g) => [g.group, g.table.map((t) => [t.position, t.team, t.points])]), [
+            ['Group 1', [[1, 'TEST C', 4], [2, 'TEST A', 2]]],
+            ['Group 2', [[1, 'TEST B', 0]]],
+        ]);
+        assert.deepEqual(groupsAsked, [CUP]);
         assert.deepEqual(row.season, {
             startDate: cup.startTime.toISOString(), endDate: new Date(now + 2 * day).toISOString(), finishedMatches: 2, recheck: false,
+            groups: { 'test a': 'Group 1', 'test c': 'Group 1', 'test b': 'Group 2' }, groupsAt: new Date(now).toISOString(),
         });
         // A table of two is a bilateral series: saved empty, so it isn't asked again
         assert.deepEqual((await stored(PAIR)).standings, []);
@@ -1195,22 +1206,25 @@ describe('Cricket points tables', () => {
         asked.length = 0;
         // As if the tables were fetched at `now`
         await db.update(competitionStats).set({ updatedAt: new Date(now) }).where(inArray(competitionStats.code, [CUP, PAIR]));
-        assert.equal(await syncCricketTables({ now: now + 20 * 60_000, fetchPoints }), 0);
+        assert.equal(await syncCricketTables({ now: now + 20 * 60_000, fetchPoints, fetchGroups }), 0);
 
         await db.update(matches).set({ status: 'finished' }).where(eq(matches.externalId, `${tag}-c3`));
         // Not yet: CricketData.org gets 15 minutes to count it
-        assert.equal(await syncCricketTables({ now: now + 5 * 60_000, fetchPoints }), 0);
-        assert.equal(await syncCricketTables({ now: now + 20 * 60_000, fetchPoints }), 1);
+        assert.equal(await syncCricketTables({ now: now + 5 * 60_000, fetchPoints, fetchGroups }), 0);
+        assert.equal(await syncCricketTables({ now: now + 20 * 60_000, fetchPoints, fetchGroups }), 1);
         assert.deepEqual(asked, [CUP]);
         assert.equal((await stored(CUP)).season.finishedMatches, 3);
+        // The groups were kept, not asked for again
+        assert.deepEqual(groupsAsked, [CUP]);
+        assert.equal((await stored(CUP)).standings.length, 2);
 
         // Once more an hour later, and then not again
         await db.update(competitionStats).set({ updatedAt: new Date(now) }).where(eq(competitionStats.code, CUP));
         asked.length = 0;
-        assert.equal(await syncCricketTables({ now: now + 30 * 60_000, fetchPoints }), 0);
-        assert.equal(await syncCricketTables({ now: now + 61 * 60_000, fetchPoints }), 1);
+        assert.equal(await syncCricketTables({ now: now + 30 * 60_000, fetchPoints, fetchGroups }), 0);
+        assert.equal(await syncCricketTables({ now: now + 61 * 60_000, fetchPoints, fetchGroups }), 1);
         await db.update(competitionStats).set({ updatedAt: new Date(now) }).where(eq(competitionStats.code, CUP));
-        assert.equal(await syncCricketTables({ now: now + 3 * 3600e3, fetchPoints }), 0);
+        assert.equal(await syncCricketTables({ now: now + 3 * 3600e3, fetchPoints, fetchGroups }), 0);
         assert.deepEqual(asked, [CUP]);
     });
 
@@ -1233,8 +1247,10 @@ describe('Cricket points tables', () => {
         assert.equal(listed.sport, 'Cricket');
         assert.equal(listed.hasTable, undefined);
         assert.ok(!list.some((c) => c.code === EMPTY));
-        const firstCricket = list.findIndex((c) => c.sport === 'Cricket');
-        assert.ok(list.slice(firstCricket).every((c) => c.sport === 'Cricket'));
+        // Football, then cricket, then basketball
+        const order = ['Football', 'Cricket', 'Basketball'];
+        const ranks = list.map((c) => order.indexOf(c.sport));
+        assert.deepEqual(ranks, [...ranks].sort((x, y) => x - y));
 
         const one = await request('GET', `/competitions/${LISTED.toUpperCase()}`, undefined, { admin: false });
         assert.equal(one.status, 200);

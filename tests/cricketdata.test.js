@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { assignInnings, fetchFixtures, fetchMatchInfo, parseCompetition, toMatchRow, toPointsTable, toScorecard } from '../src/providers/cricketdata.js';
-import { dueSeries, seriesFromMatches } from '../src/jobs/cricket-tables-sync.js';
+import { assignInnings, fetchFixtures, fetchMatchInfo, parseCompetition, parseGroup, teamGroups, toMatchRow, toPointsTable, toScorecard } from '../src/providers/cricketdata.js';
+import { dueSeries, groupOf, seriesFromMatches, splitByGroup } from '../src/jobs/cricket-tables-sync.js';
 import {
     asFinished, cricketHitsLeft, giveUpAt, nextDelay, noteCricketHits, pickFixtures, settleOverdue, wantedInterval,
 } from '../src/jobs/cricket-sync.js';
@@ -366,5 +366,62 @@ describe('CricketData.org points tables', () => {
         // A series without a table is asked about again a day later
         stored.set('none', row(0, 25, false));
         assert.ok(dueSeries(series, stored, NOW).some((s) => s.code === 'none'));
+
+        // ...or 6 hours after a new result: tables can appear a few days in
+        stored.set('none', row(0, 5, false));
+        assert.ok(!dueSeries(series, stored, NOW).some((s) => s.code === 'none'));
+        stored.set('none', row(0, 7, false));
+        assert.ok(dueSeries(series, stored, NOW).some((s) => s.code === 'none'));
+        stored.set('none', row(1, 7, false));
+        assert.ok(!dueSeries(series, stored, NOW).some((s) => s.code === 'none'));
+    });
+});
+
+// Real responses for the Syed Mushtaq Ali Trophy Elite 2026 (23 November):
+// its points table (32 teams, no groups) and its match list
+const smatPoints = JSON.parse(readFileSync(new URL('./fixtures/cricketdata-points-smat.json', import.meta.url))).data;
+const smatInfo = JSON.parse(readFileSync(new URL('./fixtures/cricketdata-series-smat.json', import.meta.url))).data;
+
+describe('Cricket tables played in groups', () => {
+    it('reads the group from a match name', () => {
+        assert.equal(parseGroup('Delhi vs Railways, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026'), 'Elite Group B');
+        assert.equal(parseGroup('Pakistan U19 vs Nepal U19, 12th Match, Group A, ACC Mens U19 Asia Cup 2026'), 'Group A');
+        assert.equal(parseGroup('Tbc vs Tbc, Final, Syed Mushtaq Ali Trophy Elite 2026'), null);
+    });
+
+    it('puts each team in its first group, not a later stage', () => {
+        const groups = teamGroups(smatInfo.matchList);
+        assert.equal(Object.keys(groups).length, 32);
+        assert.equal(groups.delhi, 'Elite Group B');
+        assert.equal(groups.andhra, 'Elite Group C');
+        // Spelt two ways in their match list
+        assert.equal(groups['jammu and kashmir'], 'Elite Group B');
+        assert.deepEqual([...new Set(Object.values(groups))].sort(), ['Elite Group A', 'Elite Group B', 'Elite Group C', 'Elite Group D']);
+        assert.deepEqual(teamGroups([]), {});
+    });
+
+    it('splits a real table into its four groups of eight', () => {
+        const standings = splitByGroup(toPointsTable(smatPoints), teamGroups(smatInfo.matchList));
+        assert.deepEqual(standings.map((s) => [s.group, s.table.length]), [
+            ['Elite Group A', 8], ['Elite Group B', 8], ['Elite Group C', 8], ['Elite Group D', 8],
+        ]);
+        for (const s of standings) assert.deepEqual(s.table.map((t) => t.position), [1, 2, 3, 4, 5, 6, 7, 8]);
+    });
+
+    it('finds a team whose name is spelt differently in the match list', () => {
+        // Seen in the ACC Mens Asia Cup Rising Stars 2026
+        const groups = { 'Hong Kong': 'Group A', 'India A': 'Group B', India: 'Group C' };
+        assert.equal(groupOf(groups, 'Hong Kong China'), 'Group A');
+        assert.equal(groupOf(groups, 'india a'), 'Group B');
+        // Not a guess between two
+        assert.equal(groupOf({ 'Hong Kong': 'A', 'Hong Kong China Women': 'B' }, 'Hong Kong China'), null);
+        assert.equal(groupOf(groups, 'Nepal'), null);
+    });
+
+    it('keeps one table when there are no groups, and lists unknown teams last', () => {
+        const table = toPointsTable(wbblPoints);
+        assert.deepEqual(splitByGroup(table, {}), [{ stage: null, group: null, table }]);
+        const split = splitByGroup(toPointsTable(smatPoints), { andhra: 'Group 1', assam: 'Group 2' });
+        assert.deepEqual(split.map((s) => [s.group, s.table.length]), [['Group 1', 1], ['Group 2', 1], ['Other teams', 30]]);
     });
 });

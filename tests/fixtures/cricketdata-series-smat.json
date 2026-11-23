@@ -1,0 +1,1143 @@
+{
+  "status": "success",
+  "data": {
+    "info": {
+      "id": "d7c7977a-0a0a-41d2-9e2b-6481943eee7c",
+      "name": "Syed Mushtaq Ali Trophy Elite 2026",
+      "startdate": "2026-11-14",
+      "enddate": "Dec 06",
+      "odi": 0,
+      "t20": 125,
+      "test": 0,
+      "squads": 32,
+      "matches": 125
+    },
+    "matchList": [
+      {
+        "name": "Delhi vs Railways, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-26",
+        "dateTimeGMT": "2026-11-26T05:30:00",
+        "teams": [
+          "Delhi",
+          "Railways"
+        ]
+      },
+      {
+        "name": "Andhra vs Puducherry, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-24",
+        "dateTimeGMT": "2026-11-24T11:00:00",
+        "teams": [
+          "Andhra",
+          "Puducherry"
+        ]
+      },
+      {
+        "name": "Rajasthan vs Uttar Pradesh, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-14",
+        "dateTimeGMT": "2026-11-14T10:30:00",
+        "teams": [
+          "Rajasthan",
+          "Uttar Pradesh"
+        ]
+      },
+      {
+        "name": "Saurashtra vs Haryana, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-16",
+        "dateTimeGMT": "2026-11-16T08:00:00",
+        "teams": [
+          "Saurashtra",
+          "Haryana"
+        ]
+      },
+      {
+        "name": "Tbc vs Tbc, Super League Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-12-04",
+        "dateTimeGMT": "2026-12-04T11:00:00",
+        "teams": [
+          "Tbc",
+          "Tbc"
+        ]
+      },
+      {
+        "name": "Vidarbha vs Gujarat, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-22",
+        "dateTimeGMT": "2026-11-22T03:30:00",
+        "teams": [
+          "Vidarbha",
+          "Gujarat"
+        ]
+      },
+      {
+        "name": "Gujarat vs Odisha, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-14",
+        "dateTimeGMT": "2026-11-14T06:00:00",
+        "teams": [
+          "Gujarat",
+          "Odisha"
+        ]
+      },
+      {
+        "name": "Tbc vs Tbc, Final, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-12-06",
+        "dateTimeGMT": "2026-12-06T11:00:00",
+        "teams": [
+          "Tbc",
+          "Tbc"
+        ]
+      },
+      {
+        "name": "Tripura vs Puducherry, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-16",
+        "dateTimeGMT": "2026-11-16T08:00:00",
+        "teams": [
+          "Tripura",
+          "Puducherry"
+        ]
+      },
+      {
+        "name": "Bengal vs Rajasthan, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-26",
+        "dateTimeGMT": "2026-11-26T05:30:00",
+        "teams": [
+          "Bengal",
+          "Rajasthan"
+        ]
+      },
+      {
+        "name": "Railways vs Bihar, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-16",
+        "dateTimeGMT": "2026-11-16T03:30:00",
+        "teams": [
+          "Railways",
+          "Bihar"
+        ]
+      },
+      {
+        "name": "Hyderabad vs Gujarat, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-24",
+        "dateTimeGMT": "2026-11-24T05:30:00",
+        "teams": [
+          "Hyderabad",
+          "Gujarat"
+        ]
+      },
+      {
+        "name": "Odisha vs Mumbai, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-24",
+        "dateTimeGMT": "2026-11-24T11:00:00",
+        "teams": [
+          "Odisha",
+          "Mumbai"
+        ]
+      },
+      {
+        "name": "Maharashtra vs Himachal Pradesh, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-18",
+        "dateTimeGMT": "2026-11-18T05:30:00",
+        "teams": [
+          "Maharashtra",
+          "Himachal Pradesh"
+        ]
+      },
+      {
+        "name": "Vidarbha vs Mumbai, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-20",
+        "dateTimeGMT": "2026-11-20T11:00:00",
+        "teams": [
+          "Vidarbha",
+          "Mumbai"
+        ]
+      },
+      {
+        "name": "Bengal vs Jharkhand, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-18",
+        "dateTimeGMT": "2026-11-18T03:30:00",
+        "teams": [
+          "Bengal",
+          "Jharkhand"
+        ]
+      },
+      {
+        "name": "Karnataka vs Uttar Pradesh, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-16",
+        "dateTimeGMT": "2026-11-16T05:30:00",
+        "teams": [
+          "Karnataka",
+          "Uttar Pradesh"
+        ]
+      },
+      {
+        "name": "Bengal vs Mizoram, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-20",
+        "dateTimeGMT": "2026-11-20T08:00:00",
+        "teams": [
+          "Bengal",
+          "Mizoram"
+        ]
+      },
+      {
+        "name": "Uttar Pradesh vs Jharkhand, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-22",
+        "dateTimeGMT": "2026-11-22T08:00:00",
+        "teams": [
+          "Uttar Pradesh",
+          "Jharkhand"
+        ]
+      },
+      {
+        "name": "Assam vs Puducherry, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-18",
+        "dateTimeGMT": "2026-11-18T08:00:00",
+        "teams": [
+          "Assam",
+          "Puducherry"
+        ]
+      },
+      {
+        "name": "Vidarbha vs Odisha, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-16",
+        "dateTimeGMT": "2026-11-16T03:30:00",
+        "teams": [
+          "Vidarbha",
+          "Odisha"
+        ]
+      },
+      {
+        "name": "Punjab vs Haryana, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-14",
+        "dateTimeGMT": "2026-11-14T04:00:00",
+        "teams": [
+          "Punjab",
+          "Haryana"
+        ]
+      },
+      {
+        "name": "Saurashtra vs Tamil Nadu, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-26",
+        "dateTimeGMT": "2026-11-26T11:00:00",
+        "teams": [
+          "Saurashtra",
+          "Tamil Nadu"
+        ]
+      },
+      {
+        "name": "Jammu and Kashmir vs Delhi, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-14",
+        "dateTimeGMT": "2026-11-14T11:00:00",
+        "teams": [
+          "Jammu and Kashmir",
+          "Delhi"
+        ]
+      },
+      {
+        "name": "Bengal vs Baroda, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-22",
+        "dateTimeGMT": "2026-11-22T05:30:00",
+        "teams": [
+          "Bengal",
+          "Baroda"
+        ]
+      },
+      {
+        "name": "Tripura vs Assam, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-26",
+        "dateTimeGMT": "2026-11-26T11:00:00",
+        "teams": [
+          "Tripura",
+          "Assam"
+        ]
+      },
+      {
+        "name": "Kerala vs Tripura, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-20",
+        "dateTimeGMT": "2026-11-20T08:00:00",
+        "teams": [
+          "Kerala",
+          "Tripura"
+        ]
+      },
+      {
+        "name": "Chhattisgarh vs Goa, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-24",
+        "dateTimeGMT": "2026-11-24T03:30:00",
+        "teams": [
+          "Chhattisgarh",
+          "Goa"
+        ]
+      },
+      {
+        "name": "Tbc vs Tbc, Super League Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-30",
+        "dateTimeGMT": "2026-11-30T03:30:00",
+        "teams": [
+          "Tbc",
+          "Tbc"
+        ]
+      },
+      {
+        "name": "Goa vs Odisha, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-22",
+        "dateTimeGMT": "2026-11-22T11:00:00",
+        "teams": [
+          "Goa",
+          "Odisha"
+        ]
+      },
+      {
+        "name": "Rajasthan vs Baroda, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-20",
+        "dateTimeGMT": "2026-11-20T11:00:00",
+        "teams": [
+          "Rajasthan",
+          "Baroda"
+        ]
+      },
+      {
+        "name": "Assam vs Andhra, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-22",
+        "dateTimeGMT": "2026-11-22T11:00:00",
+        "teams": [
+          "Assam",
+          "Andhra"
+        ]
+      },
+      {
+        "name": "Kerala vs Andhra, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-18",
+        "dateTimeGMT": "2026-11-18T03:30:00",
+        "teams": [
+          "Kerala",
+          "Andhra"
+        ]
+      },
+      {
+        "name": "Delhi vs Tamil Nadu, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-24",
+        "dateTimeGMT": "2026-11-24T03:30:00",
+        "teams": [
+          "Delhi",
+          "Tamil Nadu"
+        ]
+      },
+      {
+        "name": "Uttarakhand vs Mumbai, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-26",
+        "dateTimeGMT": "2026-11-26T03:30:00",
+        "teams": [
+          "Uttarakhand",
+          "Mumbai"
+        ]
+      },
+      {
+        "name": "Uttar Pradesh vs Baroda, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-18",
+        "dateTimeGMT": "2026-11-18T08:00:00",
+        "teams": [
+          "Uttar Pradesh",
+          "Baroda"
+        ]
+      },
+      {
+        "name": "Jammu And Kashmir vs Haryana, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-26",
+        "dateTimeGMT": "2026-11-26T03:30:00",
+        "teams": [
+          "Jammu And Kashmir",
+          "Haryana"
+        ]
+      },
+      {
+        "name": "Karnataka vs Baroda, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-26",
+        "dateTimeGMT": "2026-11-26T03:30:00",
+        "teams": [
+          "Karnataka",
+          "Baroda"
+        ]
+      },
+      {
+        "name": "Chhattisgarh vs Mumbai, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-22",
+        "dateTimeGMT": "2026-11-22T05:30:00",
+        "teams": [
+          "Chhattisgarh",
+          "Mumbai"
+        ]
+      },
+      {
+        "name": "Jharkhand vs Baroda, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-24",
+        "dateTimeGMT": "2026-11-24T11:00:00",
+        "teams": [
+          "Jharkhand",
+          "Baroda"
+        ]
+      },
+      {
+        "name": "Madhya Pradesh vs Tripura, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-18",
+        "dateTimeGMT": "2026-11-18T11:00:00",
+        "teams": [
+          "Madhya Pradesh",
+          "Tripura"
+        ]
+      },
+      {
+        "name": "Chandigarh vs Rajasthan, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-18",
+        "dateTimeGMT": "2026-11-18T05:30:00",
+        "teams": [
+          "Chandigarh",
+          "Rajasthan"
+        ]
+      },
+      {
+        "name": "Delhi vs Punjab, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-16",
+        "dateTimeGMT": "2026-11-16T11:00:00",
+        "teams": [
+          "Delhi",
+          "Punjab"
+        ]
+      },
+      {
+        "name": "Chandigarh vs Jharkhand, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-26",
+        "dateTimeGMT": "2026-11-26T08:00:00",
+        "teams": [
+          "Chandigarh",
+          "Jharkhand"
+        ]
+      },
+      {
+        "name": "Himachal Pradesh vs Assam, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-14",
+        "dateTimeGMT": "2026-11-14T10:30:00",
+        "teams": [
+          "Himachal Pradesh",
+          "Assam"
+        ]
+      },
+      {
+        "name": "Karnataka vs Jharkhand, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-20",
+        "dateTimeGMT": "2026-11-20T03:30:00",
+        "teams": [
+          "Karnataka",
+          "Jharkhand"
+        ]
+      },
+      {
+        "name": "Uttarakhand vs Odisha, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-20",
+        "dateTimeGMT": "2026-11-20T05:30:00",
+        "teams": [
+          "Uttarakhand",
+          "Odisha"
+        ]
+      },
+      {
+        "name": "Saurashtra vs Bihar, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-14",
+        "dateTimeGMT": "2026-11-14T06:00:00",
+        "teams": [
+          "Saurashtra",
+          "Bihar"
+        ]
+      },
+      {
+        "name": "Himachal Pradesh vs Tripura, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-22",
+        "dateTimeGMT": "2026-11-22T03:30:00",
+        "teams": [
+          "Himachal Pradesh",
+          "Tripura"
+        ]
+      },
+      {
+        "name": "Kerala vs Himachal Pradesh, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-26",
+        "dateTimeGMT": "2026-11-26T05:30:00",
+        "teams": [
+          "Kerala",
+          "Himachal Pradesh"
+        ]
+      },
+      {
+        "name": "Chandigarh vs Baroda, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-14",
+        "dateTimeGMT": "2026-11-14T04:00:00",
+        "teams": [
+          "Chandigarh",
+          "Baroda"
+        ]
+      },
+      {
+        "name": "Karnataka vs Chandigarh, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-22",
+        "dateTimeGMT": "2026-11-22T08:00:00",
+        "teams": [
+          "Karnataka",
+          "Chandigarh"
+        ]
+      },
+      {
+        "name": "Madhya Pradesh vs Kerala, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-14",
+        "dateTimeGMT": "2026-11-14T11:00:00",
+        "teams": [
+          "Madhya Pradesh",
+          "Kerala"
+        ]
+      },
+      {
+        "name": "Kerala vs Puducherry, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-22",
+        "dateTimeGMT": "2026-11-22T05:30:00",
+        "teams": [
+          "Kerala",
+          "Puducherry"
+        ]
+      },
+      {
+        "name": "Chhattisgarh vs Odisha, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-18",
+        "dateTimeGMT": "2026-11-18T03:30:00",
+        "teams": [
+          "Chhattisgarh",
+          "Odisha"
+        ]
+      },
+      {
+        "name": "Delhi vs Saurashtra, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-20",
+        "dateTimeGMT": "2026-11-20T08:00:00",
+        "teams": [
+          "Delhi",
+          "Saurashtra"
+        ]
+      },
+      {
+        "name": "Rajasthan vs Mizoram, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-22",
+        "dateTimeGMT": "2026-11-22T03:30:00",
+        "teams": [
+          "Rajasthan",
+          "Mizoram"
+        ]
+      },
+      {
+        "name": "Madhya Pradesh vs Andhra, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-20",
+        "dateTimeGMT": "2026-11-20T05:30:00",
+        "teams": [
+          "Madhya Pradesh",
+          "Andhra"
+        ]
+      },
+      {
+        "name": "Rajasthan vs Jharkhand, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-16",
+        "dateTimeGMT": "2026-11-16T03:30:00",
+        "teams": [
+          "Rajasthan",
+          "Jharkhand"
+        ]
+      },
+      {
+        "name": "Railways vs Saurashtra, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-22",
+        "dateTimeGMT": "2026-11-22T03:30:00",
+        "teams": [
+          "Railways",
+          "Saurashtra"
+        ]
+      },
+      {
+        "name": "Karnataka vs Bengal, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-14",
+        "dateTimeGMT": "2026-11-14T11:00:00",
+        "teams": [
+          "Karnataka",
+          "Bengal"
+        ]
+      },
+      {
+        "name": "Bengal vs Uttar Pradesh, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-24",
+        "dateTimeGMT": "2026-11-24T03:30:00",
+        "teams": [
+          "Bengal",
+          "Uttar Pradesh"
+        ]
+      },
+      {
+        "name": "Tamil Nadu vs Bihar, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-22",
+        "dateTimeGMT": "2026-11-22T11:00:00",
+        "teams": [
+          "Tamil Nadu",
+          "Bihar"
+        ]
+      },
+      {
+        "name": "Tbc vs Tbc, Super League Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-12-04",
+        "dateTimeGMT": "2026-12-04T00:00:00",
+        "teams": [
+          "Tbc",
+          "Tbc"
+        ]
+      },
+      {
+        "name": "Chhattisgarh vs Hyderabad, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-16",
+        "dateTimeGMT": "2026-11-16T11:00:00",
+        "teams": [
+          "Chhattisgarh",
+          "Hyderabad"
+        ]
+      },
+      {
+        "name": "Tbc vs Tbc, Super League Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-12-04",
+        "dateTimeGMT": "2026-12-04T08:00:00",
+        "teams": [
+          "Tbc",
+          "Tbc"
+        ]
+      },
+      {
+        "name": "Tbc vs Tbc, Super League Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-30",
+        "dateTimeGMT": "2026-11-30T11:00:00",
+        "teams": [
+          "Tbc",
+          "Tbc"
+        ]
+      },
+      {
+        "name": "Madhya Pradesh vs Himachal Pradesh, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-24",
+        "dateTimeGMT": "2026-11-24T08:00:00",
+        "teams": [
+          "Madhya Pradesh",
+          "Himachal Pradesh"
+        ]
+      },
+      {
+        "name": "Karnataka vs Mizoram, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-18",
+        "dateTimeGMT": "2026-11-18T11:00:00",
+        "teams": [
+          "Karnataka",
+          "Mizoram"
+        ]
+      },
+      {
+        "name": "Vidarbha vs Goa, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-14",
+        "dateTimeGMT": "2026-11-14T10:30:00",
+        "teams": [
+          "Vidarbha",
+          "Goa"
+        ]
+      },
+      {
+        "name": "Delhi vs Haryana, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-22",
+        "dateTimeGMT": "2026-11-22T05:30:00",
+        "teams": [
+          "Delhi",
+          "Haryana"
+        ]
+      },
+      {
+        "name": "Hyderabad vs Vidarbha, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-18",
+        "dateTimeGMT": "2026-11-18T05:30:00",
+        "teams": [
+          "Hyderabad",
+          "Vidarbha"
+        ]
+      },
+      {
+        "name": "Madhya Pradesh vs Assam, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-16",
+        "dateTimeGMT": "2026-11-16T05:30:00",
+        "teams": [
+          "Madhya Pradesh",
+          "Assam"
+        ]
+      },
+      {
+        "name": "Mizoram vs Baroda, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-16",
+        "dateTimeGMT": "2026-11-16T08:00:00",
+        "teams": [
+          "Mizoram",
+          "Baroda"
+        ]
+      },
+      {
+        "name": "Uttarakhand vs Vidarbha, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-24",
+        "dateTimeGMT": "2026-11-24T08:00:00",
+        "teams": [
+          "Uttarakhand",
+          "Vidarbha"
+        ]
+      },
+      {
+        "name": "Maharashtra vs Puducherry, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-14",
+        "dateTimeGMT": "2026-11-14T04:00:00",
+        "teams": [
+          "Maharashtra",
+          "Puducherry"
+        ]
+      },
+      {
+        "name": "Bengal vs Chandigarh, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-16",
+        "dateTimeGMT": "2026-11-16T11:00:00",
+        "teams": [
+          "Bengal",
+          "Chandigarh"
+        ]
+      },
+      {
+        "name": "Gujarat vs Mumbai, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-16",
+        "dateTimeGMT": "2026-11-16T08:00:00",
+        "teams": [
+          "Gujarat",
+          "Mumbai"
+        ]
+      },
+      {
+        "name": "Punjab vs Railways, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-18",
+        "dateTimeGMT": "2026-11-18T05:30:00",
+        "teams": [
+          "Punjab",
+          "Railways"
+        ]
+      },
+      {
+        "name": "Jammu And Kashmir vs Railways, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-24",
+        "dateTimeGMT": "2026-11-24T08:00:00",
+        "teams": [
+          "Jammu And Kashmir",
+          "Railways"
+        ]
+      },
+      {
+        "name": "Railways vs Haryana, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-20",
+        "dateTimeGMT": "2026-11-20T11:00:00",
+        "teams": [
+          "Railways",
+          "Haryana"
+        ]
+      },
+      {
+        "name": "Chhattisgarh vs Vidarbha, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-26",
+        "dateTimeGMT": "2026-11-26T05:30:00",
+        "teams": [
+          "Chhattisgarh",
+          "Vidarbha"
+        ]
+      },
+      {
+        "name": "Tripura vs Andhra, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-14",
+        "dateTimeGMT": "2026-11-14T06:00:00",
+        "teams": [
+          "Tripura",
+          "Andhra"
+        ]
+      },
+      {
+        "name": "Punjab vs Bihar, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-26",
+        "dateTimeGMT": "2026-11-26T08:00:00",
+        "teams": [
+          "Punjab",
+          "Bihar"
+        ]
+      },
+      {
+        "name": "Jammu and Kashmir vs Bihar, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-20",
+        "dateTimeGMT": "2026-11-20T05:30:00",
+        "teams": [
+          "Jammu and Kashmir",
+          "Bihar"
+        ]
+      },
+      {
+        "name": "Hyderabad vs Goa, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-20",
+        "dateTimeGMT": "2026-11-20T03:30:00",
+        "teams": [
+          "Hyderabad",
+          "Goa"
+        ]
+      },
+      {
+        "name": "Jammu and Kashmir vs Tamil Nadu, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-16",
+        "dateTimeGMT": "2026-11-16T05:30:00",
+        "teams": [
+          "Jammu and Kashmir",
+          "Tamil Nadu"
+        ]
+      },
+      {
+        "name": "Madhya Pradesh vs Puducherry, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-26",
+        "dateTimeGMT": "2026-11-26T03:30:00",
+        "teams": [
+          "Madhya Pradesh",
+          "Puducherry"
+        ]
+      },
+      {
+        "name": "Chandigarh vs Mizoram, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-24",
+        "dateTimeGMT": "2026-11-24T05:30:00",
+        "teams": [
+          "Chandigarh",
+          "Mizoram"
+        ]
+      },
+      {
+        "name": "Tbc vs Tbc, Super League Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-12-02",
+        "dateTimeGMT": "2026-12-02T11:00:00",
+        "teams": [
+          "Tbc",
+          "Tbc"
+        ]
+      },
+      {
+        "name": "Mizoram vs Uttar Pradesh, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-26",
+        "dateTimeGMT": "2026-11-26T11:00:00",
+        "teams": [
+          "Mizoram",
+          "Uttar Pradesh"
+        ]
+      },
+      {
+        "name": "Uttarakhand vs Hyderabad, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-22",
+        "dateTimeGMT": "2026-11-22T08:00:00",
+        "teams": [
+          "Uttarakhand",
+          "Hyderabad"
+        ]
+      },
+      {
+        "name": "Himachal Pradesh vs Andhra, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-16",
+        "dateTimeGMT": "2026-11-16T03:30:00",
+        "teams": [
+          "Himachal Pradesh",
+          "Andhra"
+        ]
+      },
+      {
+        "name": "Tbc vs Tbc, Super League Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-12-02",
+        "dateTimeGMT": "2026-12-02T08:00:00",
+        "teams": [
+          "Tbc",
+          "Tbc"
+        ]
+      },
+      {
+        "name": "Delhi vs Bihar, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-18",
+        "dateTimeGMT": "2026-11-18T03:30:00",
+        "teams": [
+          "Delhi",
+          "Bihar"
+        ]
+      },
+      {
+        "name": "Railways vs Tamil Nadu, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-14",
+        "dateTimeGMT": "2026-11-14T10:30:00",
+        "teams": [
+          "Railways",
+          "Tamil Nadu"
+        ]
+      },
+      {
+        "name": "Kerala vs Assam, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-24",
+        "dateTimeGMT": "2026-11-24T03:30:00",
+        "teams": [
+          "Kerala",
+          "Assam"
+        ]
+      },
+      {
+        "name": "Karnataka vs Rajasthan, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-24",
+        "dateTimeGMT": "2026-11-24T08:00:00",
+        "teams": [
+          "Karnataka",
+          "Rajasthan"
+        ]
+      },
+      {
+        "name": "Maharashtra vs Andhra, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-26",
+        "dateTimeGMT": "2026-11-26T08:00:00",
+        "teams": [
+          "Maharashtra",
+          "Andhra"
+        ]
+      },
+      {
+        "name": "Tbc vs Tbc, Super League Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-12-02",
+        "dateTimeGMT": "2026-12-02T03:30:00",
+        "teams": [
+          "Tbc",
+          "Tbc"
+        ]
+      },
+      {
+        "name": "Jammu and Kashmir vs Saurashtra, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-18",
+        "dateTimeGMT": "2026-11-18T11:00:00",
+        "teams": [
+          "Jammu and Kashmir",
+          "Saurashtra"
+        ]
+      },
+      {
+        "name": "Goa vs Mumbai, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-18",
+        "dateTimeGMT": "2026-11-18T08:00:00",
+        "teams": [
+          "Goa",
+          "Mumbai"
+        ]
+      },
+      {
+        "name": "Punjab vs Saurashtra, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-24",
+        "dateTimeGMT": "2026-11-24T05:30:00",
+        "teams": [
+          "Punjab",
+          "Saurashtra"
+        ]
+      },
+      {
+        "name": "Punjab vs Tamil Nadu, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-20",
+        "dateTimeGMT": "2026-11-20T03:30:00",
+        "teams": [
+          "Punjab",
+          "Tamil Nadu"
+        ]
+      },
+      {
+        "name": "Bihar vs Haryana, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-24",
+        "dateTimeGMT": "2026-11-24T11:00:00",
+        "teams": [
+          "Bihar",
+          "Haryana"
+        ]
+      },
+      {
+        "name": "Kerala vs Maharashtra, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-16",
+        "dateTimeGMT": "2026-11-16T11:00:00",
+        "teams": [
+          "Kerala",
+          "Maharashtra"
+        ]
+      },
+      {
+        "name": "Mizoram vs Jharkhand, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-14",
+        "dateTimeGMT": "2026-11-14T06:00:00",
+        "teams": [
+          "Mizoram",
+          "Jharkhand"
+        ]
+      },
+      {
+        "name": "Hyderabad vs Odisha, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-26",
+        "dateTimeGMT": "2026-11-26T08:00:00",
+        "teams": [
+          "Hyderabad",
+          "Odisha"
+        ]
+      },
+      {
+        "name": "Uttarakhand vs Goa, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-16",
+        "dateTimeGMT": "2026-11-16T05:30:00",
+        "teams": [
+          "Uttarakhand",
+          "Goa"
+        ]
+      },
+      {
+        "name": "Maharashtra vs Tripura, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-24",
+        "dateTimeGMT": "2026-11-24T05:30:00",
+        "teams": [
+          "Maharashtra",
+          "Tripura"
+        ]
+      },
+      {
+        "name": "Uttarakhand vs Gujarat, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-18",
+        "dateTimeGMT": "2026-11-18T11:00:00",
+        "teams": [
+          "Uttarakhand",
+          "Gujarat"
+        ]
+      },
+      {
+        "name": "Chhattisgarh vs Gujarat, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-20",
+        "dateTimeGMT": "2026-11-20T08:00:00",
+        "teams": [
+          "Chhattisgarh",
+          "Gujarat"
+        ]
+      },
+      {
+        "name": "Maharashtra vs Assam, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-20",
+        "dateTimeGMT": "2026-11-20T03:30:00",
+        "teams": [
+          "Maharashtra",
+          "Assam"
+        ]
+      },
+      {
+        "name": "Madhya Pradesh vs Maharashtra, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-22",
+        "dateTimeGMT": "2026-11-22T08:00:00",
+        "teams": [
+          "Madhya Pradesh",
+          "Maharashtra"
+        ]
+      },
+      {
+        "name": "Chandigarh vs Uttar Pradesh, Elite Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-20",
+        "dateTimeGMT": "2026-11-20T03:30:00",
+        "teams": [
+          "Chandigarh",
+          "Uttar Pradesh"
+        ]
+      },
+      {
+        "name": "Uttarakhand vs Chhattisgarh, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-14",
+        "dateTimeGMT": "2026-11-14T11:00:00",
+        "teams": [
+          "Uttarakhand",
+          "Chhattisgarh"
+        ]
+      },
+      {
+        "name": "Gujarat vs Goa, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-26",
+        "dateTimeGMT": "2026-11-26T11:00:00",
+        "teams": [
+          "Gujarat",
+          "Goa"
+        ]
+      },
+      {
+        "name": "Himachal Pradesh vs Puducherry, Elite Group C, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-20",
+        "dateTimeGMT": "2026-11-20T11:00:00",
+        "teams": [
+          "Himachal Pradesh",
+          "Puducherry"
+        ]
+      },
+      {
+        "name": "Tbc vs Tbc, Super League Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-12-02",
+        "dateTimeGMT": "2026-12-02T00:00:00",
+        "teams": [
+          "Tbc",
+          "Tbc"
+        ]
+      },
+      {
+        "name": "Tbc vs Tbc, Super League Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-12-04",
+        "dateTimeGMT": "2026-12-04T05:30:00",
+        "teams": [
+          "Tbc",
+          "Tbc"
+        ]
+      },
+      {
+        "name": "Tbc vs Tbc, Super League Group A, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-30",
+        "dateTimeGMT": "2026-11-30T08:00:00",
+        "teams": [
+          "Tbc",
+          "Tbc"
+        ]
+      },
+      {
+        "name": "Hyderabad vs Mumbai, Elite Group D, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-14",
+        "dateTimeGMT": "2026-11-14T04:00:00",
+        "teams": [
+          "Hyderabad",
+          "Mumbai"
+        ]
+      },
+      {
+        "name": "Tamil Nadu vs Haryana, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-18",
+        "dateTimeGMT": "2026-11-18T08:00:00",
+        "teams": [
+          "Tamil Nadu",
+          "Haryana"
+        ]
+      },
+      {
+        "name": "Tbc vs Tbc, Super League Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-30",
+        "dateTimeGMT": "2026-11-30T05:30:00",
+        "teams": [
+          "Tbc",
+          "Tbc"
+        ]
+      },
+      {
+        "name": "Jammu and Kashmir vs Punjab, Elite Group B, Syed Mushtaq Ali Trophy Elite 2026",
+        "date": "2026-11-22",
+        "dateTimeGMT": "2026-11-22T08:00:00",
+        "teams": [
+          "Jammu and Kashmir",
+          "Punjab"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,335 @@
+{
+  "data": [
+    {
+      "teamname": "Andhra",
+      "shortname": "AP",
+      "img": "https://g.cricapi.com/iapi/2-637897787068768481.png?w=48",
+      "matches": 5,
+      "wins": 4,
+      "loss": 1,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Assam",
+      "shortname": "ASM",
+      "img": "https://g.cricapi.com/iapi/4-637897788303626448.png?w=48",
+      "matches": 5,
+      "wins": 0,
+      "loss": 5,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Baroda",
+      "shortname": "BRD",
+      "img": "https://g.cricapi.com/iapi/11-637897788547716432.png?w=48",
+      "matches": 5,
+      "wins": 4,
+      "loss": 1,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Bengal",
+      "shortname": "BEN",
+      "img": "https://g.cricapi.com/iapi/12-637897789312826453.png?w=48",
+      "matches": 5,
+      "wins": 3,
+      "loss": 2,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Bihar",
+      "shortname": "BIH",
+      "img": "https://g.cricapi.com/iapi/13-637897789593616439.png?w=48",
+      "matches": 5,
+      "wins": 2,
+      "loss": 3,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Chandigarh",
+      "shortname": "CDG",
+      "img": "https://g.cricapi.com/iapi/17-637897790786615930.png?w=48",
+      "matches": 5,
+      "wins": 2,
+      "loss": 3,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Chhattisgarh",
+      "shortname": "CG",
+      "img": "https://g.cricapi.com/iapi/18-637897790441171438.png?w=48",
+      "matches": 5,
+      "wins": 2,
+      "loss": 2,
+      "ties": 0,
+      "nr": 1
+    },
+    {
+      "teamname": "Delhi",
+      "shortname": "DEL",
+      "img": "https://g.cricapi.com/iapi/19-637897791252425890.png?w=48",
+      "matches": 5,
+      "wins": 3,
+      "loss": 2,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Goa",
+      "shortname": "GOA",
+      "img": "https://g.cricapi.com/iapi/26-637897792202678375.png?w=48",
+      "matches": 5,
+      "wins": 0,
+      "loss": 4,
+      "ties": 0,
+      "nr": 1
+    },
+    {
+      "teamname": "Gujarat",
+      "shortname": "GUJ",
+      "img": "https://g.cricapi.com/iapi/27-637897792592204662.png?w=48",
+      "matches": 5,
+      "wins": 1,
+      "loss": 3,
+      "ties": 0,
+      "nr": 1
+    },
+    {
+      "teamname": "Haryana",
+      "shortname": "HAR",
+      "img": "https://g.cricapi.com/iapi/28-637897793655542496.png?w=48",
+      "matches": 5,
+      "wins": 2,
+      "loss": 3,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Himachal Pradesh",
+      "shortname": "HP",
+      "img": "https://g.cricapi.com/iapi/29-637897794090988497.png?w=48",
+      "matches": 5,
+      "wins": 4,
+      "loss": 1,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Hyderabad",
+      "shortname": "HYD",
+      "img": "https://g.cricapi.com/iapi/30-637897794525321433.png?w=48",
+      "matches": 5,
+      "wins": 2,
+      "loss": 2,
+      "ties": 0,
+      "nr": 1
+    },
+    {
+      "teamname": "Jammu and Kashmir",
+      "shortname": "JK",
+      "img": "https://g.cricapi.com/iapi/35-637897795101008676.png?w=48",
+      "matches": 5,
+      "wins": 3,
+      "loss": 2,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Jharkhand",
+      "shortname": "JHKD",
+      "img": "https://g.cricapi.com/iapi/36-637897796049905291.png?w=48",
+      "matches": 5,
+      "wins": 2,
+      "loss": 3,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Karnataka",
+      "shortname": "KAR",
+      "img": "https://g.cricapi.com/iapi/38-637897796420763611.png?w=48",
+      "matches": 5,
+      "wins": 2,
+      "loss": 3,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Kerala",
+      "shortname": "KER",
+      "img": "https://g.cricapi.com/iapi/39-637897797224429950.png?w=48",
+      "matches": 5,
+      "wins": 3,
+      "loss": 2,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Madhya Pradesh",
+      "shortname": "MP",
+      "img": "https://g.cricapi.com/iapi/44-637897797618832180.png?w=48",
+      "matches": 5,
+      "wins": 4,
+      "loss": 1,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Maharashtra",
+      "shortname": "MAH",
+      "img": "https://g.cricapi.com/iapi/45-637897797960178569.png?w=48",
+      "matches": 5,
+      "wins": 2,
+      "loss": 3,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Mizoram",
+      "shortname": "MIZ",
+      "img": "https://g.cricapi.com/iapi/48-637897799543539926.png?w=48",
+      "matches": 5,
+      "wins": 0,
+      "loss": 5,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Mumbai",
+      "shortname": "MUM",
+      "img": "https://g.cricapi.com/iapi/51-637897800490404099.png?w=48",
+      "matches": 5,
+      "wins": 4,
+      "loss": 0,
+      "ties": 0,
+      "nr": 1
+    },
+    {
+      "teamname": "Odisha",
+      "shortname": "ODSA",
+      "img": "https://g.cricapi.com/iapi/63-637897801546556330.png?w=48",
+      "matches": 5,
+      "wins": 1,
+      "loss": 3,
+      "ties": 0,
+      "nr": 1
+    },
+    {
+      "teamname": "Puducherry",
+      "shortname": "PDC",
+      "img": "https://g.cricapi.com/iapi/71-637897802638820789.png?w=48",
+      "matches": 5,
+      "wins": 3,
+      "loss": 2,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Punjab",
+      "shortname": "PUN",
+      "img": "https://g.cricapi.com/iapi/72-637897801965344275.png?w=48",
+      "matches": 5,
+      "wins": 3,
+      "loss": 2,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Railways",
+      "shortname": "RLYS",
+      "img": "https://g.cricapi.com/iapi/75-637897802979231020.png?w=48",
+      "matches": 5,
+      "wins": 1,
+      "loss": 4,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Rajasthan",
+      "shortname": "RAJ",
+      "img": "https://g.cricapi.com/iapi/76-637897803285904034.png?w=48",
+      "matches": 5,
+      "wins": 4,
+      "loss": 1,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Saurashtra",
+      "shortname": "SAUR",
+      "img": "https://g.cricapi.com/iapi/78-637897803602821716.png?w=48",
+      "matches": 5,
+      "wins": 4,
+      "loss": 1,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Tamil Nadu",
+      "shortname": "TN",
+      "img": "https://g.cricapi.com/iapi/87-637897804625426972.png?w=48",
+      "matches": 5,
+      "wins": 2,
+      "loss": 3,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Tripura",
+      "shortname": "TRI",
+      "img": "https://g.cricapi.com/iapi/90-637897805085647315.png?w=48",
+      "matches": 5,
+      "wins": 0,
+      "loss": 5,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Uttar Pradesh",
+      "shortname": "UP",
+      "img": "https://g.cricapi.com/iapi/94-637897806676935322.png?w=48",
+      "matches": 5,
+      "wins": 3,
+      "loss": 2,
+      "ties": 0,
+      "nr": 0
+    },
+    {
+      "teamname": "Uttarakhand",
+      "shortname": "UTK",
+      "img": "https://g.cricapi.com/iapi/95-637897806132002810.png?w=48",
+      "matches": 5,
+      "wins": 2,
+      "loss": 2,
+      "ties": 0,
+      "nr": 1
+    },
+    {
+      "teamname": "Vidarbha",
+      "shortname": "VID",
+      "img": "https://g.cricapi.com/iapi/97-637897807024164117.png?w=48",
+      "matches": 5,
+      "wins": 4,
+      "loss": 0,
+      "ties": 0,
+      "nr": 1
+    }
+  ],
+  "status": "success",
+  "info": {
+    "hitsToday": 701,
+    "hitsUsed": 1,
+    "hitsLimit": 2000,
+    "credits": 0,
+    "server": 12,
+    "queryTime": 142.6855,
+    "s": 0,
+    "cache": 0
+  }
+}

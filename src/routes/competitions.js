@@ -10,7 +10,7 @@ export const competitionRouter = Router();
 // The order competitions are listed in: football first, its leagues in this
 // order; any others follow, by name
 const ORDER = ['PL', 'PD', 'BL1', 'SA', 'FL1', 'CL', 'DED', 'PPL', 'ELC', 'BSA', 'CLI'];
-const SPORT_ORDER = ['Football', 'Cricket'];
+const SPORT_ORDER = ['Football', 'Cricket', 'Basketball'];
 const rank = (code) => (ORDER.includes(code) ? ORDER.indexOf(code) : ORDER.length);
 const sportRank = (sport) => (SPORT_ORDER.includes(sport) ? SPORT_ORDER.indexOf(sport) : SPORT_ORDER.length);
 

@@ -4,6 +4,7 @@ import { formatInnings, formatLabel, highlightedSide, inningsOf, isCricket } fro
 import { formatCountdown, formatKickoff } from '../lib/format.js'
 import { useNow } from '../lib/useNow.js'
 import { matchMinute } from '../lib/football-clock.js'
+import { gameClock, isBasketball } from '../lib/basketball.js'
 import { matchPath, onAppLinkClick } from '../lib/route.js'
 
 const ledTone = (idle, lit) => (idle ? 'text-muted' : lit ? 'text-amber glow-amber' : 'text-amber-dim')
@@ -42,11 +43,12 @@ function Rolling({ value, className }) {
   )
 }
 
-// Football: one LED cell with the goals. The leading side is fully lit.
-function GoalsBox({ value, lit, idle, scored }) {
+// Football and basketball: one LED cell with the score. The leading side is
+// fully lit. `wide` fits basketball's three digits.
+function GoalsBox({ value, lit, idle, scored, wide }) {
   return (
     <div
-      className={`led-board relative grid h-16 w-14 shrink-0 place-items-center overflow-hidden rounded-md font-score text-5xl leading-none font-bold tabular-nums transition-colors duration-500 ${ledTone(idle, lit)}`}
+      className={`led-board relative grid h-16 shrink-0 place-items-center overflow-hidden rounded-md font-score text-5xl leading-none font-bold tabular-nums transition-colors duration-500 ${wide ? 'min-w-24 px-2' : 'w-14'} ${ledTone(idle, lit)}`}
     >
       <Rolling value={value} />
       <ScoreFlash at={scored} />
@@ -102,8 +104,11 @@ function StatusPill({ match, overdue, now }) {
   const base = 'text-sm font-bold tracking-[0.15em] uppercase'
 
   if (match.status === STATUS.LIVE) {
-    // Football's estimated minute ("67'", "HT"), when the server has a clock for it
-    const clock = match.sport === 'Football' ? matchMinute(match.details, now) : null
+    // Football's estimated minute ("67'", "HT"), when the server has a clock
+    // for it; basketball's quarter and clock ("Q3 4:12")
+    const clock = match.sport === 'Football'
+      ? matchMinute(match.details, now)
+      : isBasketball(match) ? { label: gameClock(match.details) } : null
     return (
       <span className={`flex shrink-0 items-center gap-2 text-live ${base}`}>
         <span className="relative flex size-2">
@@ -111,8 +116,11 @@ function StatusPill({ match, overdue, now }) {
           <span className="relative inline-flex size-2 rounded-full bg-live shadow-[0_0_8px_var(--color-live)]" />
         </span>
         Live
-        {clock && (
-          <span className="font-mono tracking-normal text-ink tabular-nums" title="Estimated from kick-off and half-time">
+        {clock?.label && (
+          <span
+            className="font-mono tracking-normal text-ink tabular-nums"
+            title={isBasketball(match) ? undefined : 'Estimated from kick-off and half-time'}
+          >
             {clock.label}
           </span>
         )}
@@ -138,7 +146,7 @@ function footerText(match, now, overdue) {
 
   const kickoff = formatKickoff(match.startTime, now)
 
-  if (match.status === STATUS.LIVE) return `Started ${kickoff}`
+  if (match.status === STATUS.LIVE) return `${isBasketball(match) ? 'Tip-off' : 'Started'} ${kickoff}`
   if (match.status === STATUS.FINISHED) {
     // Football's half-time score, when the provider sent one
     const ht = match.details?.halfTime
@@ -151,6 +159,8 @@ function footerText(match, now, overdue) {
 function celebrationLabel(match, scored) {
   if (!scored) return null
   if (isCricket(match)) return scored.wicket ? 'Wicket!' : null
+  // Basketball scores every few seconds: the cell's flash is enough
+  if (isBasketball(match)) return null
   return match.sport === 'Football' ? 'Goal!' : 'Score!'
 }
 
@@ -188,6 +198,7 @@ export function MatchCard({ match, link = true }) {
         lit={litSide === side}
         idle={isUpcoming}
         scored={flashFor(side)}
+        wide={isBasketball(match)}
       />
     )
 

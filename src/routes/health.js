@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { checkDatabase } from '../db/db.js';
 import { getFootballSyncStatus } from '../jobs/football-sync.js';
 import { getCricketSyncStatus } from '../jobs/cricket-sync.js';
+import { getBasketballSyncStatus } from '../jobs/basketball-sync.js';
 import { getFootballStatsSyncStatus } from '../jobs/football-stats-sync.js';
 
 // This long without a success means scores on screen may be out of date.
@@ -9,6 +10,8 @@ import { getFootballStatsSyncStatus } from '../jobs/football-stats-sync.js';
 // daily budget is low (always on the free plan).
 const FOOTBALL_STALE_AFTER_MS = 5 * 60_000;
 const CRICKET_STALE_AFTER_MS = 3 * 60 * 60_000;
+// NBA syncs every 30s while a game is on, every 10 min otherwise
+const BASKETBALL_STALE_AFTER_MS = 30 * 60_000;
 
 // Not stale during the first few minutes after start, before its first success
 function isStale(sync, staleAfterMs) {
@@ -23,7 +26,7 @@ const DB_CHECK_CACHE_MS = 5_000;
 
 // GET /health, for uptime monitors, load balancers and process supervisors.
 // 200 while the server can serve requests (status 'ok', or 'degraded' when the
-// football or cricket sync is behind, since that's a third-party problem and restarting
+// football, cricket or NBA sync is behind, since that's a third-party problem and restarting
 // won't fix it). 503 when the database is unreachable or the server is shutting
 // down, so traffic moves elsewhere.
 export function healthRouter({ isShuttingDown }) {
@@ -52,8 +55,10 @@ export function healthRouter({ isShuttingDown }) {
         const cricket = getCricketSyncStatus();
         const footballStale = isStale(football, FOOTBALL_STALE_AFTER_MS);
         const cricketStale = isStale(cricket, CRICKET_STALE_AFTER_MS);
+        const basketball = getBasketballSyncStatus();
+        const basketballStale = isStale(basketball, BASKETBALL_STALE_AFTER_MS);
 
-        const status = !db.ok ? 'down' : footballStale || cricketStale ? 'degraded' : 'ok';
+        const status = !db.ok ? 'down' : footballStale || cricketStale || basketballStale ? 'degraded' : 'ok';
 
         res.status(db.ok ? 200 : 503).json({
             status,
@@ -61,6 +66,7 @@ export function healthRouter({ isShuttingDown }) {
             db,
             footballSync: { ...football, stale: footballStale },
             cricketSync: { ...cricket, stale: cricketStale },
+            basketballSync: { ...basketball, stale: basketballStale },
             // Informational only: old tables don't make the server degraded
             footballStatsSync: getFootballStatsSyncStatus(),
         });

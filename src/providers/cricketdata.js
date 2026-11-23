@@ -232,6 +232,36 @@ export function toPointsTable(data) {
     return rows.map((row, i) => ({ position: i + 1, ...row }));
 }
 
+// The group of a match, from its name: "Delhi vs Railways, Elite Group B,
+// Syed Mushtaq Ali Trophy Elite 2026" → "Elite Group B". Null when it has none.
+export function parseGroup(name) {
+    return (name ?? '').split(',').map((p) => p.trim()).find((p) => /\b(group|pool)\b/i.test(p)) ?? null;
+}
+
+// Which group each team is in, from a series' match list: the first group
+// it plays in, so a later stage ("Super League Group A") doesn't move it.
+// { team: group }, team names lower-cased (their spelling varies: "Jammu and
+// Kashmir", "Jammu And Kashmir"); empty when the series has no groups.
+export function teamGroups(matchList = []) {
+    const groups = {};
+    const ordered = [...matchList].sort((a, b) => String(a.dateTimeGMT ?? a.date).localeCompare(String(b.dateTimeGMT ?? b.date)));
+    for (const m of ordered) {
+        const group = parseGroup(m.name);
+        if (!group) continue;
+        for (const team of m.teams ?? []) {
+            if (!team || /^tbc$/i.test(team.trim())) continue;
+            groups[normalise(team)] ??= group;
+        }
+    }
+    return groups;
+}
+
+// A series' match list (1 hit), for its groups
+export async function fetchSeriesGroups(seriesId, { apiKey = process.env.CRICKETDATA_API_KEY } = {}) {
+    const { data, info } = await call('series_info', { id: seriesId }, apiKey);
+    return { groups: teamGroups(data?.matchList), hitsToday: info.hitsToday ?? null, hitsLimit: info.hitsLimit ?? null };
+}
+
 export async function fetchSeriesPoints(seriesId, { apiKey = process.env.CRICKETDATA_API_KEY } = {}) {
     const { data, info } = await call('series_points', { id: seriesId }, apiKey);
     return { table: toPointsTable(data), hitsToday: info.hitsToday ?? null, hitsLimit: info.hitsLimit ?? null };

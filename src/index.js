@@ -10,6 +10,7 @@ import { httpRateLimit, trustedProxies } from './rate-limit.js';
 import { startStatusSync } from './jobs/status-sync.js';
 import { startFootballSync } from './jobs/football-sync.js';
 import { startCricketSync } from './jobs/cricket-sync.js';
+import { startBasketballSync } from './jobs/basketball-sync.js';
 import { startFootballStatsSync } from './jobs/football-stats-sync.js';
 import { competitionRouter } from './routes/competitions.js';
 import { headToHeadRouter } from './routes/head2head.js';
@@ -86,7 +87,7 @@ app.locals.broadcastStatusChange = broadcastStatusChange;
 
 const providerCallbacks = {
     onCreated: broadcastMatchCreated,
-    // Kick-off, goals, wickets and full time become lines in the match page's
+    // Kick-off, goals, wickets, quarters and full time become lines in the match page's
     // live updates feed. A failure here mustn't stop the sync saving scores.
     onChange: (match, previous) => recordMatchEvents(previous, match, broadcastCommentary)
         .catch((e) => console.error('Failed to record match events:', e.message)),
@@ -100,6 +101,7 @@ const providerCallbacks = {
 let stopStatusSync = () => {};
 let stopFootballSync = () => {};
 let stopCricketSync = () => {};
+let stopBasketballSync = () => {};
 let stopFootballStatsSync = () => {};
 
 function startJobs() {
@@ -113,6 +115,10 @@ function startJobs() {
     // day's requests run low (every 20-40 min on the free plan), import cricket
     // from CricketData.org
     stopCricketSync = startCricketSync(providerCallbacks);
+
+    // Every 30s while an NBA game is on, every 10 min otherwise, import NBA
+    // games from BALLDONTLIE
+    stopBasketballSync = startBasketballSync(providerCallbacks);
 
     // League tables and top scorers from football-data.org, each refreshed
     // every 30 min, one request every 20s
@@ -140,6 +146,7 @@ async function shutdown(reason, exitCode = 0) {
         stopStatusSync();
         stopFootballSync();
         stopCricketSync();
+        stopBasketballSync();
         stopFootballStatsSync();
         await closeWebSockets();
         // Stops accepting connections and waits for in-flight requests
