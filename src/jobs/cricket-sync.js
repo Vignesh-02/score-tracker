@@ -290,8 +290,9 @@ export function startCricketSync(callbacks = {}) {
                 .catch((e) => console.error(`Cricket settle failed: ${e.message}`));
         }
 
-        // Points tables of tournaments with new results (1 hit each)
-        if (canSpare(TABLES_PER_SYNC)) {
+        // Points tables of tournaments with new results (1 hit each, 2 the
+        // first time for a tournament played in groups)
+        if (canSpare(TABLES_PER_SYNC * 2)) {
             await syncCricketTables({ onHits: noteCricketHits })
                 .then((n) => { if (n) console.log(`Cricket tables: ${n} refreshed`); })
                 .catch((e) => console.error(`Cricket tables sync failed: ${e.message}`));

@@ -102,6 +102,9 @@ function StandingsTable({ standing, title, liveTeams }) {
 function PointsTable({ standing, liveTeams }) {
   return (
     <div className="overflow-hidden rounded-lg border border-line bg-panel">
+      {standing.group && (
+        <p className="border-b border-line px-4 py-2.5 text-sm font-bold tracking-[0.15em] text-muted uppercase">{standing.group}</p>
+      )}
       <table className="w-full table-fixed text-sm">
         <thead className="border-b border-line text-xs">
           <tr>
@@ -150,6 +153,124 @@ function PointsNote() {
       <p className="mt-2">
         Net run rate isn't available, so teams level on points are ordered by wins and may differ from the official
         table.
+      </p>
+    </div>
+  )
+}
+
+// Basketball: one table per conference, worked out on the server from the
+// season's games. 1–6 go to the playoffs, 7–10 to the play-in.
+function NbaTable({ standing, liveTeams }) {
+  const gb = (value) => (value === 0 ? '–' : value.toFixed(1))
+  const pct = (value) => value.toFixed(3).replace(/^0/, '')
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-line bg-panel">
+      <p className="border-b border-line px-4 py-2.5 text-sm font-bold tracking-[0.15em] text-muted uppercase">
+        {standing.group === 'East' ? 'Eastern' : 'Western'} Conference
+      </p>
+      <table className="w-full table-fixed text-sm">
+        <thead className="border-b border-line text-xs">
+          <tr>
+            <th scope="col" className={`${head} w-9 pl-3 text-left sm:w-12 sm:pl-4`}>
+              <abbr title="Position">#</abbr>
+            </th>
+            <th scope="col" className={`${head} text-left`}>Team</th>
+            <th scope="col" className={th}><abbr title="Won">W</abbr></th>
+            <th scope="col" className={th}><abbr title="Lost">L</abbr></th>
+            <th scope="col" className={`${head} w-12 text-right sm:w-14`}><abbr title="Win percentage">Pct</abbr></th>
+            <th scope="col" className={`${th} hidden sm:table-cell`}><abbr title="Games behind the leader">GB</abbr></th>
+            <th scope="col" className={`${head} hidden w-14 text-right md:table-cell`}>Home</th>
+            <th scope="col" className={`${head} hidden w-14 text-right md:table-cell`}>Away</th>
+            <th scope="col" className={`${head} hidden w-14 text-right lg:table-cell`}><abbr title="Last 10 games">L10</abbr></th>
+            <th scope="col" className={`${head} w-12 pr-3 text-right sm:w-14 sm:pr-4`}><abbr title="Streak">Strk</abbr></th>
+          </tr>
+        </thead>
+        <tbody>
+          {standing.table.map((row) => (
+            <tr
+              key={row.team}
+              className={`hover:bg-line/30 ${
+                row.position === 6 ? 'border-b-2 border-dashed border-line' : row.position === 10 ? 'border-b-2 border-line' : 'border-b border-line/60 last:border-0'
+              }`}
+            >
+              <td className={`${td} pl-3 text-left text-muted sm:pl-4`}>{row.position}</td>
+              <th scope="row" className="px-1.5 py-2 text-left font-semibold tracking-wide sm:px-2">
+                <span className="flex items-center gap-2">
+                  <span className="min-w-0 truncate" title={row.team}>
+                    <span className="sm:hidden">{row.abbr ?? row.team}</span>
+                    <span className="hidden sm:inline">{row.team}</span>
+                  </span>
+                  {liveTeams.has(row.team) && <LiveDot />}
+                </span>
+              </th>
+              <td className={td}>{row.won}</td>
+              <td className={td}>{row.lost}</td>
+              <td className={`${td} font-bold text-amber`}>{pct(row.pct)}</td>
+              <td className={`${td} hidden sm:table-cell`}>{gb(row.gamesBehind)}</td>
+              <td className={`${td} hidden text-muted md:table-cell`}>{row.home}</td>
+              <td className={`${td} hidden text-muted md:table-cell`}>{row.away}</td>
+              <td className={`${td} hidden text-muted lg:table-cell`}>{row.lastTen}</td>
+              <td className={`${td} pr-3 sm:pr-4 ${row.streak?.startsWith('W') ? 'text-ink' : 'text-muted'}`}>{row.streak ?? '–'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+const ROUND_ORDER = ['NBA Finals', 'Conference finals', 'Conference semifinals', 'First round', 'Play-in']
+
+// The playoffs as series, latest round first: "BOS 3–2 MIA"
+function NbaPlayoffs({ series }) {
+  const rounds = ROUND_ORDER.map((round) => [round, series.filter((s) => s.round === round)]).filter(([, list]) => list.length > 0)
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-line bg-panel">
+      <p className="border-b border-line px-4 py-2.5 text-sm font-bold tracking-[0.15em] text-muted uppercase">Playoffs</p>
+      {rounds.map(([round, list]) => (
+        <div key={round} className="border-b border-line/60 last:border-0">
+          <p className="px-4 pt-3 pb-1 text-xs font-bold tracking-[0.15em] text-amber uppercase">{round}</p>
+          <ul>
+            {list.map((s) => {
+              const [a, b] = s.teams
+              const leader = a.wins === b.wins ? null : a.wins > b.wins ? a : b
+              const status = s.winner
+                ? `${s.winner === a.team ? a.abbr ?? a.team : b.abbr ?? b.team} ${s.round === 'Play-in' ? 'won' : `win ${Math.max(a.wins, b.wins)}–${Math.min(a.wins, b.wins)}`}`
+                : leader
+                  ? `${leader.abbr ?? leader.team} lead ${Math.max(a.wins, b.wins)}–${Math.min(a.wins, b.wins)}`
+                  : `Tied ${a.wins}–${b.wins}`
+              return (
+                <li key={`${a.team}-${b.team}`} className="flex items-center gap-3 px-4 py-2 text-sm">
+                  <span className="min-w-0 flex-1 truncate font-semibold tracking-wide">
+                    {[a, b].map((t, i) => (
+                      <span key={t.team} className={s.winner && s.winner !== t.team ? 'text-muted line-through' : ''}>
+                        {i > 0 && <span className="text-muted no-underline"> v </span>}
+                        {t.seed && <span className="font-mono text-xs text-muted">{t.seed} </span>}
+                        {t.abbr ?? t.team}
+                      </span>
+                    ))}
+                  </span>
+                  <span className={`shrink-0 font-mono text-xs ${s.winner ? 'text-muted' : 'text-amber'}`}>{status}</span>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function NbaNote() {
+  return (
+    <div className="rounded-lg border border-line bg-panel px-4 py-3 text-sm text-muted">
+      <p className="font-bold tracking-[0.15em] uppercase">About these tables</p>
+      <p className="mt-2">1–6 go to the playoffs, 7–10 to the play-in.</p>
+      <p className="mt-2">
+        Worked out from this season's results. Teams level on win percentage are ordered by head-to-head; the NBA's
+        other tie-breakers aren't applied, so a tied team may be a place out.
       </p>
     </div>
   )
@@ -211,7 +332,7 @@ function Message({ title, children }) {
   )
 }
 
-const SPORT_LABELS = { Football: 'Football', Cricket: 'Cricket' }
+const SPORT_LABELS = { Football: 'Football', Cricket: 'Cricket', Basketball: 'NBA' }
 
 // Football or cricket, when both have tables
 function SportSwitch({ sports, value, onChange }) {
@@ -249,6 +370,7 @@ export function Tables({ competitionName, sportName, onSelect, matches }) {
   const sports = [...new Set(competitions.map((c) => c.sport))]
   const sameSport = competitions.filter((c) => c.sport === selected?.sport)
   const cricket = selected?.sport === 'Cricket'
+  const basketball = selected?.sport === 'Basketball'
 
   const detail = useQuery({
     queryKey: competitionQueryKey(selected?.code),
@@ -267,12 +389,14 @@ export function Tables({ competitionName, sportName, onSelect, matches }) {
   // Teams in this competition playing right now get a live dot
   const liveTeams = new Set(
     (matches ?? [])
-      .filter((m) => m.status === STATUS.LIVE && m.competition === selected.name)
+      // NBA playoff games are listed as 'NBA Playoffs'
+      .filter((m) => m.status === STATUS.LIVE && (m.competition === selected.name || (basketball && m.competition?.startsWith('NBA'))))
       .flatMap((m) => [m.homeTeam, m.awayTeam]),
   )
 
   const data = detail.data
-  const standings = data?.standings ?? []
+  const standings = (data?.standings ?? []).filter((s) => s.stage !== 'PLAYOFFS')
+  const playoffs = data?.standings?.find((s) => s.stage === 'PLAYOFFS')
   const matchday = data?.season?.currentMatchday
 
   return (
@@ -302,7 +426,7 @@ export function Tables({ competitionName, sportName, onSelect, matches }) {
         </label>
         {data && (
           <p className="font-mono text-xs text-muted">
-            {matchday && !cricket ? `Matchday ${matchday} · ` : ''}Updated {updatedAgo(data.updatedAt, now)}
+            {matchday && !cricket && !basketball ? `Matchday ${matchday} · ` : ''}Updated {updatedAgo(data.updatedAt, now)}
           </p>
         )}
       </div>
@@ -317,7 +441,9 @@ export function Tables({ competitionName, sportName, onSelect, matches }) {
             {standings.length === 0 ? (
               <Message title="No table for this competition">It may be in a knockout round.</Message>
             ) : cricket ? (
-              <PointsTable standing={standings[0]} liveTeams={liveTeams} />
+              standings.map((s) => <PointsTable key={s.group ?? 'all'} standing={s} liveTeams={liveTeams} />)
+            ) : basketball ? (
+              standings.map((s) => <NbaTable key={s.group} standing={s} liveTeams={liveTeams} />)
             ) : (
               standings.map((s) => (
                 <StandingsTable
@@ -329,7 +455,16 @@ export function Tables({ competitionName, sportName, onSelect, matches }) {
               ))
             )}
           </div>
-          {cricket ? <PointsNote /> : <TopScorers scorers={data.scorers ?? []} />}
+          {cricket ? (
+            <PointsNote />
+          ) : basketball ? (
+            <div className="space-y-4">
+              {playoffs && <NbaPlayoffs series={playoffs.series} />}
+              <NbaNote />
+            </div>
+          ) : (
+            <TopScorers scorers={data.scorers ?? []} />
+          )}
         </div>
       )}
     </div>

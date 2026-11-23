@@ -11,6 +11,7 @@ import {
 } from '../lib/api.js'
 import { STATUS } from '../lib/matches.js'
 import { isCricket } from '../lib/cricket.js'
+import { isBasketball, periodLabel } from '../lib/basketball.js'
 import { goBack, onAppLinkClick } from '../lib/route.js'
 import { useMatchSubscriptions } from '../live/hooks.js'
 
@@ -52,6 +53,8 @@ const EVENT_STYLE = {
   half_time: { label: 'HT', className: 'border border-cyan/50 text-cyan' },
   second_half: { label: '2nd half', className: 'border border-cyan/50 text-cyan' },
   full_time: { label: 'FT', className: 'border border-cyan/50 text-cyan' },
+  period_end: { label: 'Quarter', className: 'border border-cyan/50 text-cyan' },
+  overtime: { label: 'OT', className: 'border border-warn/60 text-warn' },
   result: { label: 'Result', className: 'border border-cyan/50 text-cyan' },
   score_correction: { label: 'VAR', className: 'border border-warn/60 text-warn' },
   dismissal: { label: 'Out', className: 'bg-live text-ink' },
@@ -76,7 +79,9 @@ function UpdatesFeed({ match }) {
         <Empty>
           {match.status === STATUS.FINISHED
             ? 'No updates were recorded for this match.'
-            : 'Goals, wickets and results appear here as they happen.'}
+            : isBasketball(match)
+              ? 'Tip-off, the end of each quarter and the final score appear here as they happen.'
+              : 'Goals, wickets and results appear here as they happen.'}
         </Empty>
       ) : (
         <ol aria-live="polite">
@@ -130,7 +135,7 @@ function MatchInfo({ match, scorecard }) {
     <Panel title="Match info">
       <dl>
         <InfoRow label="Competition">{match.competition ?? match.sport}</InfoRow>
-        <InfoRow label={cricket ? 'Starts' : 'Kick-off'}>
+        <InfoRow label={cricket ? 'Starts' : isBasketball(match) ? 'Tip-off' : 'Kick-off'}>
           {match.startTime ? fullDateTime.format(new Date(match.startTime)) : 'To be confirmed'}
         </InfoRow>
         {scorecard?.venue && <InfoRow label="Venue">{scorecard.venue}</InfoRow>}
@@ -161,6 +166,48 @@ function MatchInfo({ match, scorecard }) {
           )
         })}
       </dl>
+    </Panel>
+  )
+}
+
+// ---------- quarter-by-quarter score (basketball) ----------
+
+function QuarterScores({ match }) {
+  const { home = [], away = [] } = match.details?.quarters ?? {}
+  const periods = Math.max(home.length, away.length)
+  if (periods === 0) return null
+
+  const cell = 'px-2 py-2 text-right font-mono tabular-nums'
+  const total = (side) => (side === 'home' ? match.homeScore : match.awayScore)
+  const abbr = (side) => (side === 'home' ? match.details?.homeAbbr : match.details?.awayAbbr)
+
+  return (
+    <Panel title="Score by quarter">
+      <table className="w-full text-sm">
+        <thead className="border-b border-line text-xs text-muted uppercase">
+          <tr>
+            <th scope="col" className="px-4 py-2 text-left">Team</th>
+            {Array.from({ length: periods }, (_, i) => (
+              <th key={i} scope="col" className={cell}>{periodLabel(i + 1)}</th>
+            ))}
+            <th scope="col" className="px-4 py-2 text-right text-amber">T</th>
+          </tr>
+        </thead>
+        <tbody>
+          {[['home', home], ['away', away]].map(([side, points]) => {
+            const name = side === 'home' ? match.homeTeam : match.awayTeam
+            return (
+              <tr key={side} className="border-b border-line/60 last:border-0">
+                <th scope="row" className="px-4 py-2 text-left font-semibold" title={name}>{abbr(side) ?? name}</th>
+                {Array.from({ length: periods }, (_, i) => (
+                  <td key={i} className={cell}>{points[i] ?? '–'}</td>
+                ))}
+                <td className="px-4 py-2 text-right font-mono font-bold text-amber tabular-nums">{total(side)}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
     </Panel>
   )
 }
@@ -375,7 +422,11 @@ export function MatchPage({ id }) {
             <span>
               <span className="block font-bold tracking-[0.12em] text-amber uppercase">Full match centre on Google</span>
               <span className="block text-sm text-muted">
-                {football ? 'Line-ups, goalscorers and match stats' : 'Ball-by-ball commentary and player stats'}
+                {football
+                  ? 'Line-ups, goalscorers and match stats'
+                  : isBasketball(match)
+                    ? 'Box score, play-by-play and player stats'
+                    : 'Ball-by-ball commentary and player stats'}
               </span>
             </span>
             <ExternalLink className="size-5 shrink-0 text-amber" aria-hidden />
@@ -383,6 +434,7 @@ export function MatchPage({ id }) {
           </a>
 
           <MatchInfo match={match} scorecard={scorecard.data?.data} />
+          {isBasketball(match) && <QuarterScores match={match} />}
           {football && <TeamStandings match={match} />}
           {match.source === 'football-data' && <HeadToHead match={match} />}
         </div>

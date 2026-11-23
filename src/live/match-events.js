@@ -14,6 +14,49 @@ const scoreLine = (m) => `${m.homeTeam} ${m.homeScore}–${m.awayScore} ${m.away
 const teamFor = (m, side) => (side === 'home' ? m.homeTeam : m.awayTeam);
 const inningsLine = (i) => `${i.runs}/${i.wickets} (${i.overs} ov)`;
 const isCricket = (m) => Array.isArray(m.details?.innings) || m.sport?.toLowerCase() === 'cricket';
+const isBasketball = (m) => m.sport?.toLowerCase() === 'basketball';
+
+// ---------- basketball ----------
+
+// 1–4 the quarters, 5 the first overtime, 6 the second…
+export const periodLabel = (period) => (period <= 4 ? `Q${period}` : period === 5 ? 'OT' : `${period - 4}OT`);
+
+// The score at the end of a period, from the quarter scores when there are
+// enough of them, otherwise the score now
+function scoreAfter(m, period) {
+    const { home = [], away = [] } = m.details?.quarters ?? {};
+    if (home.length < period || away.length < period) return scoreLine(m);
+    const sum = (list) => list.slice(0, period).reduce((a, b) => a + b, 0);
+    return `${m.homeTeam} ${sum(home)}–${sum(away)} ${m.awayTeam}`;
+}
+
+// No line per basket (there are 200 a game): the end of each period instead,
+// with halftime and overtime called out
+function basketballPeriodEvents(previous, next) {
+    const events = [];
+    const was = previous.details?.period ?? 0;
+    const now = next.details?.period ?? 0;
+    const halftimeNow = /half/i.test(next.details?.statusText ?? '');
+    const halftimeBefore = /half/i.test(previous.details?.statusText ?? '');
+
+    for (let p = Math.max(was, 1); p < now; p++) {
+        if (p === 2) {
+            // Already said when it went to halftime
+            if (!halftimeBefore) events.push({ eventType: 'half_time', team: null, period: 'HT', message: `Halftime: ${scoreAfter(next, 2)}` });
+        } else {
+            events.push({ eventType: 'period_end', team: null, period: periodLabel(p), message: `End of ${periodLabel(p)}: ${scoreAfter(next, p)}` });
+        }
+    }
+
+    if (halftimeNow && !halftimeBefore && now <= 2) {
+        events.push({ eventType: 'half_time', team: null, period: 'HT', message: `Halftime: ${scoreAfter(next, 2)}` });
+    }
+    if (now >= 5 && now > was && was >= 1) {
+        events.push({ eventType: 'overtime', team: null, period: periodLabel(now), message: `${periodLabel(now)} under way` });
+    }
+
+    return events;
+}
 
 function footballScoreEvents(previous, next, now) {
     const events = [];
@@ -69,10 +112,21 @@ function cricketScoreEvents(previous, next) {
 // The feed lines for one change, oldest first. [] when nothing worth saying changed.
 export function describeChange(previous, next, now = Date.now()) {
     const cricket = isCricket(next);
+    const basketball = isBasketball(next);
     const events = [];
 
     if (previous.status !== LIVE && next.status === LIVE) {
-        events.push({ eventType: 'start', team: null, message: cricket ? 'Match started' : 'Kick-off' });
+        events.push({ eventType: 'start', team: null, message: cricket ? 'Match started' : basketball ? 'Tip-off' : 'Kick-off' });
+    }
+
+    if (basketball) {
+        if (next.status !== FINISHED) events.push(...basketballPeriodEvents(previous, next));
+        if (previous.status !== FINISHED && next.status === FINISHED) {
+            const period = next.details?.period ?? 4;
+            const ot = period > 4 ? ` (${periodLabel(period)})` : '';
+            events.push({ eventType: 'full_time', team: null, message: `Final${ot}: ${scoreLine(next)}` });
+        }
+        return events;
     }
 
     events.push(...(cricket ? cricketScoreEvents(previous, next) : footballScoreEvents(previous, next, now)));
